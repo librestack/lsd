@@ -26,6 +26,6 @@
 
 int main(int argc, char **argv)
 {
-	LOG(LOG_DEBUG, "yo");
+	LOG(LOG_DEBUG, "Starting up...");
 	return 0;
 }

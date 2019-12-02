@@ -19,7 +19,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 
-OBJECTS:=$(PROGRAM).o err.o log.o misc.o
+OBJECTS:=$(PROGRAM).o err.o log.o
 
 .PHONY:		all clean
 
@@ -33,8 +33,6 @@ $(PROGRAM).o:	$(PROGRAM).c $(PROGRAM).h
 err.o:		err.c err.h
 
 log.o:		log.c log.h
-
-misc.o:		misc.c misc.h
 
 clean:
 		rm -f *.o $(PROGRAM)

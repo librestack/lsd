@@ -26,19 +26,27 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "log.h"
-#include "misc.h"
+
+#define LOG_BUFSIZE 128
 
 void logmsg(unsigned int level, const char *fmt, ...)
 {
 	va_list argp;
-	char *b;
+	char *mbuf = NULL;
+	char buf[LOG_BUFSIZE];
+	char *b = buf;
+	int len;
 
 	va_start(argp, fmt);
-	b = malloc(_vscprintf(fmt, argp) + 1);
-	assert(b != NULL);
-	vsprintf(b, fmt, argp);
+	len = vsnprintf(buf, LOG_BUFSIZE, fmt, argp);
+	if (len > LOG_BUFSIZE) {
+		/* need a bigger buffer, resort to malloc */
+		mbuf = malloc(len + 1);
+		vsprintf(mbuf, fmt, argp);
+		b = mbuf;
+	}
 	va_end(argp);
 	fprintf(stderr, "%s\n", b);
-	free(b);
+	free(mbuf);
 }
 
