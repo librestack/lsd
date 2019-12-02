@@ -19,7 +19,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 
-OBJECTS:=$(PROGRAM).o config.o err.o log.o misc.o
+OBJECTS:=$(PROGRAM).o err.o log.o misc.o
 
 .PHONY:		all clean
 
@@ -29,8 +29,6 @@ lsd:		$(OBJECTS)
 		$(CC) $(LDFLAGS) -o $(PROGRAM) $(OBJECTS)
 
 $(PROGRAM).o:	$(PROGRAM).c $(PROGRAM).h
-
-config.o:	config.c config.h
 
 err.o:		err.c err.h
 

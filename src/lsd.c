@@ -27,6 +27,5 @@
 int main(int argc, char **argv)
 {
 	LOG(LOG_DEBUG, "yo");
-	config_read();
 	return 0;
 }
