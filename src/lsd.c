@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 	signal(SIGCHLD, sigchld_handler);
 
 	for (;;) {
-		while ((err = semop(semid, sop, 1)) != 0); /* loop in case of EINTR */
+		while ((err = semop(semid, sop, 1))); /* loop in case of EINTR */
 
 		if ((busy = semctl(semid, HANDLER_BSY, GETVAL)) == -1)
 			CONTINUE(LOG_ERROR, "unable to read busy semaphore");
