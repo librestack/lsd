@@ -49,4 +49,3 @@ void logmsg(unsigned int level, const char *fmt, ...)
 	fprintf(stderr, "%s\n", b);
 	free(mbuf);
 }
-

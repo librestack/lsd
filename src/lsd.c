@@ -45,6 +45,8 @@
 #define HANDLER_RDY 0	/* semapahore to track ready handlers */
 #define HANDLER_BSY 1	/* semapahore to track busy handlers */
 
+/* TODO: listen on 80 + 443 if root, 8080 + 8443 if not */
+
 int handlers = 0;
 int semid;
 
@@ -59,10 +61,8 @@ struct addrinfo * getaddrs(struct addrinfo **servinfo)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
-	if ((status = getaddrinfo(NULL, tcpport, &hints, servinfo)) != 0) {
-		LOG(LOG_ERROR, "%s", strerror(status));
-		_exit(EXIT_FAILURE);
-	}
+	if ((status = getaddrinfo(NULL, tcpport, &hints, servinfo)) != 0)
+		DIE("%s", strerror(status));
 
 	return *servinfo;
 }
@@ -75,39 +75,43 @@ int server_listen()
 	int sock = -1;
 	int yes = 1;
 
-	/* sockets and stuff */
+#define CLEANUP(msg) { \
+		ERROR(msg, strerror(errno)); \
+		freeaddrinfo(addr); \
+		_exit(EXIT_FAILURE); }
+
 	for (p = getaddrs(&addr); p; p = p->ai_next) {
-		/* FIXME: error handling in here */
-		getnameinfo(p->ai_addr, p->ai_addrlen, h, NI_MAXHOST, NULL, 0, NI_NUMERICSERV);
-		LOG(LOG_DEBUG, "Binding to %s", h);
-		sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-		setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-		bind(sock, p->ai_addr, p->ai_addrlen);
+		if (getnameinfo(p->ai_addr, p->ai_addrlen, h, NI_MAXHOST, NULL, 0, NI_NUMERICSERV))
+			CLEANUP("getnameinfo() error: %s");
+		DEBUG("Binding to %s", h);
+		if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+			CLEANUP("socket() error: %s");
+		if ((setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))) == -1)
+			CLEANUP("setsockopt() error: %s");
+		if ((bind(sock, p->ai_addr, p->ai_addrlen)) == -1)
+			CLEANUP("bind() error: %s");
 	} 
+#undef CLEANUP
 	freeaddrinfo(addr);
 
-	listen(sock, BACKLOG); /* FIXME: error handling */
+	if ((listen(sock, BACKLOG)) == -1)
+		DIE("listen() error: %s", strerror(errno));
 
 	return sock;
 }
 
 void sigchld_handler(int signo)
 {
-	int ready, busy;
 	struct sembuf sop;
 
-	while (waitpid(-1, NULL, WNOHANG) > 0) --handlers;
+	while (waitpid(-1, NULL, WNOHANG) > 0) --handlers; /* reap children */
 
-	ready = semctl(semid, HANDLER_RDY, GETVAL);
-	busy = semctl(semid, HANDLER_BSY, GETVAL);
-	LOG(LOG_DEBUG, "handler exited, %i remaining (ready: %i, busy: %i)", handlers, HANDLER_MIN - ready, busy);
-
-	/* check that processes haven't been killed */
+	/* check handler count, in case any were killed */
 	if (handlers < HANDLER_MIN) {
-		LOG(LOG_DEBUG, "HANDLER KILLED");
-		LOG(LOG_DEBUG, "need to create %i handlers", HANDLER_MIN - handlers);
+		int n = HANDLER_MIN - handlers;
+		DEBUG("handler(s) killed, creating %i handlers", n);
 		sop.sem_num = HANDLER_RDY;
-		sop.sem_op = HANDLER_MIN - handlers;
+		sop.sem_op = n;
 		sop.sem_flg = 0;
 		semop(semid, &sop, 1);
 	}
@@ -115,12 +119,13 @@ void sigchld_handler(int signo)
 
 int main(int argc, char **argv)
 {
-	int sock;
-	int pid;
+	int busy;
 	int err;
+	int pid;
+	int sock;
 	struct sembuf sop[2];
 
-	LOG(LOG_DEBUG, "Starting up...");
+	INFO("Starting up...");
 
 	sock = server_listen();
 	assert(sock != -1);
@@ -129,11 +134,8 @@ int main(int argc, char **argv)
 
 	/* TODO: daemonize? fork */
 
-	/* semaphores for handler tracking 
-	 * our aim is to enaure we always have HANDLER_MIN handlers waiting ready 
-	 * while not exceeding HANDLER_MAX handers */
 	semid = semget(IPC_PRIVATE, 2, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
-	assert(semid != -1); /* FIXME: error handling */
+	if (semid == -1) DIE("Unable to create semaphore");
 
 	/* initialize semaphores */
 	if ((err = semctl(semid, HANDLER_RDY, SETVAL, HANDLER_MIN)) == -1)
@@ -148,18 +150,15 @@ int main(int argc, char **argv)
 	signal(SIGCHLD, sigchld_handler);
 
 	for (;;) {
-		int ready, busy;
-		ready = semctl(semid, HANDLER_RDY, GETVAL);
-		busy = semctl(semid, HANDLER_BSY, GETVAL);
-		LOG(LOG_DEBUG, "PARENT: ready = %i, busy = %i", HANDLER_MIN - ready, busy);
-
 		while ((err = semop(semid, sop, 1)) != 0); /* loop in case of EINTR */
 
-		if (handlers >= HANDLER_MIN) continue;
+		if ((busy = semctl(semid, HANDLER_BSY, GETVAL)) == -1)
+			CONTINUE(LOG_ERROR, "unable to read busy semaphore");
+		if ((handlers - busy) >= HANDLER_MIN) continue;
 
-		LOG(LOG_DEBUG, "PARENT: forking new handler");
+		DEBUG("forking new handler");
 		if ((pid = fork()) == -1) {
-			LOG(LOG_ERROR, "fork failed");
+			ERROR("fork failed");
 			sop[0].sem_op = 1; /* increment */
 			semop(semid, sop, 1);
 			sop[0].sem_op = -1;
@@ -168,19 +167,10 @@ int main(int argc, char **argv)
 		handlers++;
 		if (pid == 0) {
 			/* child handler process */
-			LOG(LOG_DEBUG, "handler %i started", handlers);
-
-			int ready, busy;
-			ready = semctl(semid, HANDLER_RDY, GETVAL);
-			busy = semctl(semid, HANDLER_BSY, GETVAL);
-			LOG(LOG_DEBUG, "HANDLER: ready = %i, busy = %i", HANDLER_MIN - ready, busy);
+			DEBUG("handler %i started", handlers);
 
 			int conn = accept(sock, NULL, NULL);
-			LOG(LOG_DEBUG, "handler accepted connection");
-
-			ready = semctl(semid, HANDLER_RDY, GETVAL);
-			busy = semctl(semid, HANDLER_BSY, GETVAL);
-			LOG(LOG_DEBUG, "HANDLER: ready = %i, busy = %i", HANDLER_MIN - ready, busy);
+			DEBUG("handler accepted connection");
 
 			/* swap ready for busy semaphore */
 			sop[0].sem_num = HANDLER_RDY;
@@ -191,15 +181,11 @@ int main(int argc, char **argv)
 			sop[1].sem_flg = SEM_UNDO; /* release semaphore on exit */
 			semop(semid, sop, 2);
 
-			ready = semctl(semid, HANDLER_RDY, GETVAL);
-			busy = semctl(semid, HANDLER_BSY, GETVAL);
-			LOG(LOG_DEBUG, "HANDLER: sem updated ready = %i, busy = %i", HANDLER_MIN - ready, busy);
-
 			close(conn);
 			sleep(2); /* pretend we're doing something */
-			LOG(LOG_DEBUG, "handler done processing");
+			DEBUG("handler exiting");
 
-			exit(0);
+			_exit(0);
 		}
 	}
 
