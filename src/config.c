@@ -120,7 +120,7 @@ int argue(int *i, int argc, char **argv, void **key, char *kshort, char *klong, 
 	return 0;
 }
 
-void config_init(int argc, char **argv)
+int config_init(int argc, char **argv)
 {
 	/* OK, first we're going to process the commandline options/args
 	 * we don't have a default config file location, so the only way we get
@@ -150,4 +150,6 @@ void config_init(int argc, char **argv)
 		/* TODO */
 		DEBUG("config: %s", config.filename);
 	}
+
+	return 0;
 }

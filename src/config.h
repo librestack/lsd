@@ -82,6 +82,6 @@ struct config_s {
 
 extern config_t config;
 
-void	config_init(int argc, char **argv);
+int	config_init(int argc, char **argv);
 
 #endif /* __LSD_CONFIG */

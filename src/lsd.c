@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 
 	INFO("Starting up...");
 
-	config_init(argc, argv);
+	if ((err = config_init(argc, argv)) != 0) return err;
 
 	sock = server_listen();
 	assert(sock != -1); /* FIXME */
