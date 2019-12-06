@@ -28,7 +28,8 @@
 
 #define LSD_ERROR_CODES(X) \
 	X(LSD_ERROR_SUCCESS,             "Success") \
-	X(LSD_ERROR_FAILURE,             "Failure")
+	X(LSD_ERROR_FAILURE,             "Failure") \
+	X(LSD_ERROR_INVALID_ARGS,	 "Invalid arguments")
 #undef X
 
 #define LSD_ERROR_MSG(name, msg) case name: return msg;

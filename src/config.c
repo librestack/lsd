@@ -22,7 +22,7 @@
  */
 
 #include "config.h"
-#include "error.h"
+#include "err.h"
 #include "log.h"
 #include <ctype.h>
 #include <limits.h>
@@ -142,7 +142,7 @@ int config_init(int argc, char **argv)
 		if (!argue(&i, argc, argv, (void **)(&(config.key)), ks, kl, type)) continue;
 		CONFIG_ITEMS(X)
 #undef X
-		DIE("Unknown option '%s'", argv[i]);
+		FAIL(LSD_ERROR_INVALID_ARGS, "Unknown option '%s'", argv[i]);
 	}
 
 	/* process config file, if we have one */
