@@ -37,7 +37,7 @@ typedef enum {
 
 /* key, short, long, type, var, value, helptext */
 #define CONFIG_ITEMS(X) \
-	X(filename, "-C", "--config", CONFIG_TYPE_STRING, char *, "/etc/lsd/lsd.conf", "path to config file") \
+	X(filename, "-C", "--config", CONFIG_TYPE_STRING, char *, NULL, "path to config file") \
 	X(loglevel, "-l", "--loglevel", CONFIG_TYPE_INT, int, 65, "logging level") \
 	X(daemon, "-d", "--daemon", CONFIG_TYPE_BOOL, int, 0, "daemonize")
 #undef X
