@@ -90,7 +90,7 @@ int server_listen()
 			CLEANUP("setsockopt() error: %s");
 		if ((bind(sock, p->ai_addr, p->ai_addrlen)) == -1)
 			CLEANUP("bind() error: %s");
-	} 
+	}
 #undef CLEANUP
 	freeaddrinfo(addr);
 

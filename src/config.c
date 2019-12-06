@@ -32,34 +32,34 @@ config_t config;
 
 int config_bool_convert(char *val, int *ival)
 {
-        int i;
-        char *truth[] = { "1", "true", "yes", "on" };
-        char *falsy[] = { "0", "false", "no", "off" };
-        for (i = 0; i < sizeof(truth) / sizeof(char *); i++) {
-                if (strcmp(val, truth[i]) == 0) {
-                        *ival = 1;
-                        return 1;
-                }
-        }
-        for (i = 0; i < sizeof(falsy) / sizeof(char *); i++) {
-                if (strcmp(val, falsy[i]) == 0) {
-                        *ival = 0;
-                        return 1;
-                }
-        }
+	int i;
+	char *truth[] = { "1", "true", "yes", "on" };
+	char *falsy[] = { "0", "false", "no", "off" };
+	for (i = 0; i < sizeof(truth) / sizeof(char *); i++) {
+		if (strcmp(val, truth[i]) == 0) {
+			*ival = 1;
+			return 1;
+		}
+	}
+	for (i = 0; i < sizeof(falsy) / sizeof(char *); i++) {
+		if (strcmp(val, falsy[i]) == 0) {
+			*ival = 0;
+			return 1;
+		}
+	}
 	return 0;
 }
 
 int config_min(char *key)
 {
-        CONFIG_LIMITS(CONFIG_MIN)
-        return INT_MIN;
+	CONFIG_LIMITS(CONFIG_MIN)
+	return INT_MIN;
 }
 
 int config_max(char *key)
 {
-        CONFIG_LIMITS(CONFIG_MAX)
-        return INT_MAX;
+	CONFIG_LIMITS(CONFIG_MAX)
+	return INT_MAX;
 }
 
 /* return false if string contains any non-numeric characters */
