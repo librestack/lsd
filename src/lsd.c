@@ -21,6 +21,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "log.h"
 #include "lsd.h"
 #include <assert.h>
@@ -28,7 +29,6 @@
 #include <error.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ipc.h>
@@ -127,8 +127,10 @@ int main(int argc, char **argv)
 
 	INFO("Starting up...");
 
+	config_init(argc, argv);
+
 	sock = server_listen();
-	assert(sock != -1);
+	assert(sock != -1); /* FIXME */
 
 	/* TODO: drop privs */
 

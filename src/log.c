@@ -25,6 +25,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "config.h"
 #include "log.h"
 
 #define LOG_BUFSIZE 128

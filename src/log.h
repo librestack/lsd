@@ -24,6 +24,8 @@
 #ifndef __LSD_LOG
 #define __LSD_LOG 1
 
+#include "config.h"
+
 #define LOG_LEVELS(X) \
 	X(0,    LOG_NONE,       "none")                                 \
 	X(1,    LOG_SEVERE,     "severe")                               \
@@ -40,9 +42,7 @@ enum {
 	LOG_LEVELS(LOG_ENUM)
 };
 
-#define loglevel 127
-
-#define LOG(lvl, fmt, ...) if ((lvl & loglevel) == lvl) logmsg(lvl, fmt __VA_OPT__(,) __VA_ARGS__)
+#define LOG(lvl, fmt, ...) if ((lvl & config.loglevel) == lvl) logmsg(lvl, fmt __VA_OPT__(,) __VA_ARGS__)
 #define BREAK(lvl, fmt, ...) {LOG(lvl, fmt __VA_OPT__(,) __VA_ARGS__); break;}
 #define CONTINUE(lvl, fmt, ...) {LOG(lvl, fmt __VA_OPT__(,) __VA_ARGS__); continue;}
 #define DIE(fmt, ...) {LOG(LOG_SEVERE, fmt __VA_OPT__(,) __VA_ARGS__);  _exit(EXIT_FAILURE);}
