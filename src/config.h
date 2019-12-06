@@ -48,10 +48,31 @@ typedef enum {
 	X("port", 1, 65535)
 #undef X
 
+typedef struct proto_s proto_t;
+struct proto_s {
+	proto_t	*	next;
+	char *		module;
+	char *		addr;
+	char *		proto;
+	size_t		module_len;
+	size_t		addr_len;
+	size_t		proto_len;
+	unsigned short	port;
+};
+
+typedef struct uri_s uri_t;
+struct uri_s {
+	uri_t *		next;
+	char *		uri;
+	size_t		uri_len;
+};
+
 #define X(key, ks, kl, type, var, value, helptxt) var key;
 typedef struct config_s config_t;
 struct config_s {
 	CONFIG_ITEMS(X)
+	proto_t protocols;
+	uri_t	uris;
 };
 #undef X
 
