@@ -21,6 +21,8 @@
 
 OBJECTS:=$(PROGRAM).o config.o err.o log.o
 
+LDFLAGS:=-lrt
+
 .PHONY:		all clean
 
 all:		$(PROGRAM)

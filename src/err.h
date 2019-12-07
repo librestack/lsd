@@ -32,7 +32,9 @@
 	X(LSD_ERROR_INVALID_ARGS,	"Invalid arguments") \
 	X(LSD_ERROR_CONFIG_READ,	"Unable to read config file") \
 	X(LSD_ERROR_FILE_STAT_FAIL,	"Unable to stat config file") \
-	X(LSD_ERROR_CONFIG_MMAP_FAIL,	"Unable to map config")
+	X(LSD_ERROR_CONFIG_MMAP_FAIL,	"Unable to map config") \
+	X(LSD_ERROR_CONFIG_SHM_FAIL,	"Unable to open shared memory") \
+	X(LSD_ERROR_CONFIG_TRUNC_FAIL,	"Ftruncate failed on config map")
 #undef X
 
 #define LSD_ERROR_MSG(name, msg) case name: return msg;

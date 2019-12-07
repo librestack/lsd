@@ -132,6 +132,10 @@ void config_close(config_t c)
 
 int config_init(int argc, char **argv, config_t *c)
 {
+	int err = 0;
+	static int fd;
+	char *map;
+	static struct stat sb;
 
 	memset(c, 0, sizeof(config_t));
 
@@ -150,15 +154,39 @@ int config_init(int argc, char **argv, config_t *c)
 	/* process config file, if we have one */
 	if (c->filename) {
 		DEBUG("Loading config: '%s'", c->filename);
-		if ((c->fd = open(c->filename, O_RDONLY)) == -1) FAIL(LSD_ERROR_CONFIG_READ);
-		if (fstat(c->fd, &c->sb) == -1) FAIL(LSD_ERROR_FILE_STAT_FAIL);
-		DEBUG("Mapping file '%s' with %lld bytes", c->filename, (long long)c->sb.st_size);
-		c->map = mmap(NULL, c->sb.st_size, PROT_READ, MAP_SHARED, c->fd, 0);
-		if (c->map == MAP_FAILED) FAIL(LSD_ERROR_CONFIG_MMAP_FAIL);
+
+		/* mmap() gives us no guarantees about whether or not we'll see
+		 * changes to the underlying file, so we need to take a copy */
+
+		/* open & map config file */
+		if ((fd = open(c->filename, O_RDONLY)) == -1) FAIL(LSD_ERROR_CONFIG_READ);
+		if (fstat(fd, &sb) == -1) FAIL(LSD_ERROR_FILE_STAT_FAIL);
+		DEBUG("Mapping file '%s' with %lld bytes", c->filename, (long long)sb.st_size);
+		map = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+
+		/* copy data into new map */
+		if ((c->fd = shm_open("/lsd.conf", O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
+			ERROR(strerror(errno));
+			err = LSD_ERROR_CONFIG_SHM_FAIL;
+		}
+		if ((err == 0) && (ftruncate(c->fd, sb.st_size) != 0))
+			err = LSD_ERROR_CONFIG_TRUNC_FAIL;
+		if ((err == 0) && (fstat(c->fd, &c->sb) == -1)) FAIL(LSD_ERROR_FILE_STAT_FAIL);
+
+		if (err == 0) {
+			c->map = mmap(NULL, c->sb.st_size, PROT_READ|PROT_WRITE, MAP_SHARED, c->fd, 0);
+			if (c->map == MAP_FAILED) FAIL(LSD_ERROR_CONFIG_MMAP_FAIL);
+		}
+		if (err == 0)
+			memcpy(c->map, map, sb.st_size);
+
+		/* unmap & close config file */
+		munmap(map, sb.st_size);
+		close(fd);
 
 		/* TODO */
 
 	}
 
-	return 0;
+	return err;
 }
