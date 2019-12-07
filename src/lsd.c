@@ -49,6 +49,7 @@
 
 int handlers = 0;
 int semid;
+int pid;
 
 struct addrinfo * getaddrs(struct addrinfo **servinfo)
 {
@@ -117,17 +118,26 @@ void sigchld_handler(int signo)
 	}
 }
 
+void sighup_handler(int signo)
+{
+	if (pid > 0) {
+		DEBUG("HUP received by controller");
+	}
+	else {
+		DEBUG("HUP received by handler");
+	}
+}
+
 int main(int argc, char **argv)
 {
 	int busy;
 	int err;
-	int pid;
 	int sock;
 	struct sembuf sop[2];
 
-	INFO("Starting up...");
+	if ((err = config_init(argc, argv, &config)) != 0) return err;
 
-	if ((err = config_init(argc, argv)) != 0) return err;
+	INFO("Starting up...");
 
 	sock = server_listen();
 	assert(sock != -1); /* FIXME */
@@ -150,6 +160,7 @@ int main(int argc, char **argv)
 	sop[0].sem_flg = 0;
 
 	signal(SIGCHLD, sigchld_handler);
+	signal(SIGHUP, sighup_handler);
 
 	for (;;) {
 		while ((err = semop(semid, sop, 1))); /* loop in case of EINTR */
@@ -190,6 +201,8 @@ int main(int argc, char **argv)
 			_exit(0);
 		}
 	}
+
+	config_close(config);
 
 	return 0;
 }

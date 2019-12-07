@@ -26,6 +26,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 typedef enum {
@@ -70,6 +71,9 @@ struct uri_s {
 #define X(key, ks, kl, type, var, value, helptxt) var key;
 typedef struct config_s config_t;
 struct config_s {
+	struct stat sb;
+	char *map;
+	int fd;
 	CONFIG_ITEMS(X)
 	proto_t protocols;
 	uri_t	uris;
@@ -82,6 +86,7 @@ struct config_s {
 
 extern config_t config;
 
-int	config_init(int argc, char **argv);
+void	config_close(config_t c);
+int	config_init(int argc, char **argv, config_t *c);
 
 #endif /* __LSD_CONFIG */

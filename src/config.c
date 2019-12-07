@@ -25,8 +25,12 @@
 #include "err.h"
 #include "log.h"
 #include <ctype.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 config_t config;
 
@@ -120,18 +124,16 @@ int argue(int *i, int argc, char **argv, void **key, char *kshort, char *klong, 
 	return 0;
 }
 
-int config_init(int argc, char **argv)
+void config_close(config_t c)
 {
-	/* OK, first we're going to process the commandline options/args
-	 * we don't have a default config file location, so the only way we get
-	 * config is via the --config/-C option.
-	 *
-	 * Some config data will be stored as linked-lists, such as urls and
-	 * acls which need processing sequentially.  Again, we can just point to
-	 * these structures, and maintain them with CRUD functions.
-	 */
+	munmap(c.map, c.sb.st_size);
+	close(c.fd);
+}
 
-	memset(&config, 0, sizeof(config_t));
+int config_init(int argc, char **argv, config_t *c)
+{
+
+	memset(c, 0, sizeof(config_t));
 
 	/* set defaults */
 	CONFIG_ITEMS(CONFIG_DEFAULTS)
@@ -139,16 +141,23 @@ int config_init(int argc, char **argv)
 	/* args first */
 	for (int i = 1; i < argc; i++) {
 #define X(key, ks, kl, type, var, value, helptxt) \
-		if (!argue(&i, argc, argv, (void **)(&(config.key)), ks, kl, type)) continue;
+		if (!argue(&i, argc, argv, (void **)(&(c->key)), ks, kl, type)) continue;
 		CONFIG_ITEMS(X)
 #undef X
-		FAIL(LSD_ERROR_INVALID_ARGS, "Unknown option '%s'", argv[i]);
+		FAILMSG(LSD_ERROR_INVALID_ARGS, "Unknown option '%s'", argv[i]);
 	}
 
 	/* process config file, if we have one */
-	if (config.filename) {
+	if (c->filename) {
+		DEBUG("Loading config: '%s'", c->filename);
+		if ((c->fd = open(c->filename, O_RDONLY)) == -1) FAIL(LSD_ERROR_CONFIG_READ);
+		if (fstat(c->fd, &c->sb) == -1) FAIL(LSD_ERROR_FILE_STAT_FAIL);
+		DEBUG("Mapping file '%s' with %lld bytes", c->filename, (long long)c->sb.st_size);
+		c->map = mmap(NULL, c->sb.st_size, PROT_READ, MAP_SHARED, c->fd, 0);
+		if (c->map == MAP_FAILED) FAIL(LSD_ERROR_CONFIG_MMAP_FAIL);
+
 		/* TODO */
-		DEBUG("config: %s", config.filename);
+
 	}
 
 	return 0;
