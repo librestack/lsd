@@ -48,8 +48,9 @@
 /* TODO: listen on 80 + 443 if root, 8080 + 8443 if not */
 
 int handlers = 0;
-int semid;
 int pid;
+int run = 1;
+int semid;
 
 struct addrinfo * getaddrs(struct addrinfo **servinfo)
 {
@@ -128,6 +129,18 @@ void sighup_handler(int signo)
 	}
 }
 
+void sigint_handler(int signo)
+{
+	if (pid > 0) {
+		DEBUG("INT received by controller");
+		run = 1;
+	}
+	else {
+		DEBUG("INT received by handler");
+		_exit(EXIT_SUCCESS);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	int busy;
@@ -161,9 +174,12 @@ int main(int argc, char **argv)
 
 	signal(SIGCHLD, sigchld_handler);
 	signal(SIGHUP, sighup_handler);
+	signal(SIGINT, sigint_handler);
 
-	for (;;) {
-		while ((err = semop(semid, sop, 1))); /* loop in case of EINTR */
+	while (run) {
+		err = semop(semid, sop, 1);
+		if (err == EINTR) continue;
+		else if (err != 0) break;
 
 		if ((busy = semctl(semid, HANDLER_BSY, GETVAL)) == -1)
 			CONTINUE(LOG_ERROR, "unable to read busy semaphore");
@@ -203,6 +219,8 @@ int main(int argc, char **argv)
 	}
 
 	config_close(config);
+
+	DEBUG("controller exiting");
 
 	return 0;
 }
