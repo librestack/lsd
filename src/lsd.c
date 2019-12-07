@@ -123,9 +123,12 @@ void sighup_handler(int signo)
 {
 	if (pid > 0) {
 		DEBUG("HUP received by controller");
+		/* TODO: load/process and switch to new config and signal
+		 * handlers */
 	}
 	else {
 		DEBUG("HUP received by handler");
+		/* switch to new config */
 	}
 }
 
@@ -133,7 +136,7 @@ void sigint_handler(int signo)
 {
 	if (pid > 0) {
 		DEBUG("INT received by controller");
-		run = 1;
+		run = 0;
 	}
 	else {
 		DEBUG("INT received by handler");
@@ -177,9 +180,10 @@ int main(int argc, char **argv)
 	signal(SIGINT, sigint_handler);
 
 	while (run) {
-		err = semop(semid, sop, 1);
-		if (err == EINTR) continue;
-		else if (err != 0) break;
+		if ((err = semop(semid, sop, 1)) == -1) {
+			if (errno == EINTR) continue;
+			break;
+		}
 
 		if ((busy = semctl(semid, HANDLER_BSY, GETVAL)) == -1)
 			CONTINUE(LOG_ERROR, "unable to read busy semaphore");

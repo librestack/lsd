@@ -185,7 +185,7 @@ int config_init(int argc, char **argv, config_t *c)
 		munmap(map, sb.st_size);
 		close(fd);
 
-		/* TODO */
+		/* TODO - actually read config */
 
 	}
 
