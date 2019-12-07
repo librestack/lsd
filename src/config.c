@@ -128,6 +128,7 @@ void config_close(config_t c)
 {
 	munmap(c.map, c.sb.st_size);
 	close(c.fd);
+	shm_unlink(CONFIG_SHM);
 }
 
 int config_init(int argc, char **argv, config_t *c)
@@ -165,7 +166,7 @@ int config_init(int argc, char **argv, config_t *c)
 		map = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
 
 		/* copy data into new map */
-		if ((c->fd = shm_open("/lsd.conf", O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
+		if ((c->fd = shm_open(CONFIG_SHM, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
 			ERROR(strerror(errno));
 			err = LSD_ERROR_CONFIG_SHM_FAIL;
 		}

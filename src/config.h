@@ -84,6 +84,8 @@ struct config_s {
 #define CONFIG_MIN(k, min, max) if (strcmp(key + 2, k) == 0) return min;
 #define CONFIG_MAX(k, min, max) if (strcmp(key + 2, k) == 0) return max;
 
+#define CONFIG_SHM "/lsd.conf" /* name of shared memory link for config map */
+
 extern config_t config;
 
 void	config_close(config_t c);
