@@ -145,6 +145,11 @@ int config_read(char *map, size_t maplen)
 	for (int i = 0; i < maplen; i++) {
 		buf[len] = *(map++);
 		if (buf[len] == '\n') {
+			if ((len > 0) && (buf[len-1] == '\\')) {
+				/* line continuation mark */
+				len--;
+				continue;
+			}
 			buf[len] = '\0';
 			config_process_line(buf, len);
 			len = 0;
