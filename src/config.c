@@ -126,16 +126,37 @@ int argue(int *i, int argc, char **argv, void **key, char *kshort, char *klong, 
 	return 0;
 }
 
-void config_process_proto(config_t *c, char *line, size_t len)
+int config_process_proto(config_t *c, char *line, size_t len)
 {
 	proto_t *p, *s;
+	int min = config_min("port");
+	int max = config_max("port");
+	long port;
+
+	/* eg. telnet  22/tcp          localhost */
 
 	DEBUG("processing proto");
 	s = calloc(1, sizeof(proto_t));
+	s->module = line;			/* module is first */
+	while (len-- && !isspace(*(line++)));	/* find the end */
+	s->module_len = line - s->module;	/* write the length */
+	while (isblank(*line)){line++;len--;}	/* skip whitespace */
 
-	/* TODO: actually process into bits */
-	s->module = line;
-	s->module_len = len;
+	port = strtol(line, NULL, 0);
+	if (!line)
+		FAILMSG(LSD_ERROR_CONFIG_INVALID, "invalid port/protocol");
+	if (port < min || port > max)		/* check limits */
+		FAILMSG(LSD_ERROR_CONFIG_INVALID, "port must be between %i and %i", min, max);
+	s->port = (unsigned short) port;
+
+	while (len-- && (*(line++) != '/'));	/* skip to slash */
+	s->proto = ++line;			/* protocol after the slash */
+	while (len-- && !isspace(*(line++)));	/* find the end */
+	s->proto_len = line - s->proto;		/* write the length */
+
+	while (isblank(*line)){line++;len--;}	/* skip whitespace */
+	s->addr = line;				/* finally the addr */
+	s->addr_len = len;			/* write the length */
 
 	if (c->protocols) {
 		for (p = c->protocols; p->next; p = p->next);
@@ -144,6 +165,8 @@ void config_process_proto(config_t *c, char *line, size_t len)
 	else {
 		c->protocols = s;
 	}
+
+	return 0;
 }
 
 void config_process_uri(config_t *c, char *line, size_t len)
@@ -165,6 +188,7 @@ void config_process_uri(config_t *c, char *line, size_t len)
 
 int config_process_line(config_t *c, char *line, size_t len)
 {
+	int err = 0;
 	char word[len];
 
 	/* ignore blank lines */
@@ -192,7 +216,7 @@ int config_process_line(config_t *c, char *line, size_t len)
 		}
 	}
 	else if (!strcmp(word, "proto")) {	/* protocols */
-		config_process_proto(c, line, len);
+		err = config_process_proto(c, line, len);
 	}
 	else if (!strcmp(word, "uri")) {	/* uris */
 		config_process_uri(c, line, len);
@@ -201,7 +225,7 @@ int config_process_line(config_t *c, char *line, size_t len)
 		FAILMSG(LSD_ERROR_CONFIG_INVALID, "unknown config directive '%s'", word);
 	}
 
-	return 0;
+	return err;
 }
 
 int config_read(config_t *c, size_t maplen)
