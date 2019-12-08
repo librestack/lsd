@@ -86,12 +86,14 @@ int config_int_set(char *klong, int *key, char *val)
 	/* check within limits */
 	min = config_min(klong);
 	max = config_max(klong);
-	if (i < min || i > max)
-		DIE("%s value must be between %i and %i", klong, min, max);
+	if (i < min || i > max) {
+		ERROR("%s value must be between %i and %i", klong, min, max);
+		return 0;
+	}
 	
 	*key = i;
 
-	return (*key);
+	return 1;
 }
 
 /* I'd like to have an argument please */
@@ -107,8 +109,8 @@ int argue(int *i, int argc, char **argv, void **key, char *kshort, char *klong, 
 				DIE("non boolean argument to %s/%s", kshort, klong);
 			break;
 		case CONFIG_TYPE_INT:
-			if (!config_int_set(klong, (int *)key, argv[++(*i)]))
-				DIE("non numeric argument to %s/%s", kshort, klong);
+			if (!config_int_set(klong + 2, (int *)key, argv[++(*i)]))
+				DIE("invalid argument to %s/%s", kshort, klong);
 			break;
 		case CONFIG_TYPE_STRING:
 			*key = argv[++(*i)];
@@ -126,11 +128,13 @@ int argue(int *i, int argc, char **argv, void **key, char *kshort, char *klong, 
 
 int config_process_line(config_t *c, char *line, size_t len)
 {
+	char word[len];
+
 	/* ignore blank lines */
 	if (len == 0) return 0;
 
 	/* strip leading whitespace */
-	while (isblank(line[0])){line++;len--;}
+	while (isblank(*line)){line++;len--;}
 
 	/* ignore comments */
 	if (line[0] == '#') return 0;
@@ -138,19 +142,44 @@ int config_process_line(config_t *c, char *line, size_t len)
 	/* print anything else */
 	DEBUG("%s", line);
 
-	/* TODO: process global configs - these are the same as args */
+	/* grab first word */
+	for (int i = 0; i < len && !isspace(*line);) {
+		word[i] = *(line++);
+		word[++i] = '\0';
+	}
+	DEBUG("word: '%s'", word);
+
+	/* strip leading whitespace from remaining line */
+	while (isblank(*line)){line++;len--;}
+
+	/* process global configs - these are the same as args */
+	if (!strcmp(word, "loglevel")) {
+		if (!config_int_set(word, &c->loglevel, line)) {
+			FAILMSG(LSD_ERROR_CONFIG_INVALID, "non numeric argument to %s", word);
+		}
+		DEBUG("%s set", word);
+	}
 
 	/* TODO: proto */
+	if (!strcmp(word, "proto")) {
+		DEBUG("processing proto");
+	}
 
 	/* TODO: uri */
+	if (!strcmp(word, "uri")) {
+		DEBUG("processing uri");
+	}
 
 	return 0;
 }
 
 int config_read(config_t *c, size_t maplen)
 {
+	int err = 0;
+	int line = 1;
 	char buf[LINE_MAX];
 	size_t len = 0;
+
 	for (int i = 0; i < maplen; i++) {
 		buf[len] = *(c->map++);
 		if (buf[len] == '\n') {
@@ -160,13 +189,18 @@ int config_read(config_t *c, size_t maplen)
 				continue;
 			}
 			buf[len] = '\0';
-			config_process_line(c, buf, len);
+			if ((err = config_process_line(c, buf, len)) != 0) break;
 			len = 0;
+			line++;
 		}
-		else
+		else {
 			len++;
+		}
 	}
-	return 0;
+	if (err)
+		ERROR("Error in '%s', line %i", c->filename, line);
+
+	return err;
 }
 
 void config_close(config_t c)
