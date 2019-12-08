@@ -128,7 +128,7 @@ void sighup_handler(int signo)
 	}
 	else {
 		DEBUG("HUP received by handler");
-		/* switch to new config */
+		/* TODO: switch to new config */
 	}
 }
 

@@ -124,6 +124,37 @@ int argue(int *i, int argc, char **argv, void **key, char *kshort, char *klong, 
 	return 0;
 }
 
+int config_process_line(char *line, size_t len)
+{
+	/* ignore blank lines */
+	if (len == 0) return 0;
+
+	/* ignore comments */
+	if (line[0] == '#') return 0;
+
+	/* print anything else */
+	DEBUG("%s", line);
+
+	return 0;
+}
+
+int config_read(char *map, size_t maplen)
+{
+	char buf[LINE_MAX];
+	size_t len = 0;
+	for (int i = 0; i < maplen; i++) {
+		buf[len] = *(map++);
+		if (buf[len] == '\n') {
+			buf[len] = '\0';
+			config_process_line(buf, len);
+			len = 0;
+		}
+		else
+			len++;
+	}
+	return 0;
+}
+
 void config_close(config_t c)
 {
 	munmap(c.map, c.sb.st_size);
@@ -185,8 +216,7 @@ int config_init(int argc, char **argv, config_t *c)
 		munmap(map, sb.st_size);
 		close(fd);
 
-		/* TODO - actually read config */
-
+		err = config_read(c->map, sb.st_size);
 	}
 
 	return err;
