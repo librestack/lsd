@@ -130,9 +130,7 @@ int config_process_line(config_t *c, char *line, size_t len)
 	if (len == 0) return 0;
 
 	/* strip leading whitespace */
-	int i = 0;
-	while (isblank(line[i])){i++;}
-	line += i;
+	while (isblank(line[0])){line++;len--;}
 
 	/* ignore comments */
 	if (line[0] == '#') return 0;
