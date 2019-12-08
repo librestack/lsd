@@ -124,10 +124,15 @@ int argue(int *i, int argc, char **argv, void **key, char *kshort, char *klong, 
 	return 0;
 }
 
-int config_process_line(char *line, size_t len)
+int config_process_line(config_t *c, char *line, size_t len)
 {
 	/* ignore blank lines */
 	if (len == 0) return 0;
+
+	/* strip leading whitespace */
+	int i = 0;
+	while (isblank(line[i])){i++;}
+	line += i;
 
 	/* ignore comments */
 	if (line[0] == '#') return 0;
@@ -135,15 +140,21 @@ int config_process_line(char *line, size_t len)
 	/* print anything else */
 	DEBUG("%s", line);
 
+	/* TODO: process global configs - these are the same as args */
+
+	/* TODO: proto */
+
+	/* TODO: uri */
+
 	return 0;
 }
 
-int config_read(char *map, size_t maplen)
+int config_read(config_t *c, size_t maplen)
 {
 	char buf[LINE_MAX];
 	size_t len = 0;
 	for (int i = 0; i < maplen; i++) {
-		buf[len] = *(map++);
+		buf[len] = *(c->map++);
 		if (buf[len] == '\n') {
 			if ((len > 0) && (buf[len-1] == '\\')) {
 				/* line continuation mark */
@@ -151,7 +162,7 @@ int config_read(char *map, size_t maplen)
 				continue;
 			}
 			buf[len] = '\0';
-			config_process_line(buf, len);
+			config_process_line(c, buf, len);
 			len = 0;
 		}
 		else
@@ -221,7 +232,7 @@ int config_init(int argc, char **argv, config_t *c)
 		munmap(map, sb.st_size);
 		close(fd);
 
-		err = config_read(c->map, sb.st_size);
+		err = config_read(c, sb.st_size);
 	}
 
 	return err;
