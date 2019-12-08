@@ -126,6 +126,43 @@ int argue(int *i, int argc, char **argv, void **key, char *kshort, char *klong, 
 	return 0;
 }
 
+void config_process_proto(config_t *c, char *line, size_t len)
+{
+	proto_t *p, *s;
+
+	DEBUG("processing proto");
+	s = calloc(1, sizeof(proto_t));
+
+	/* TODO: actually process into bits */
+	s->module = line;
+	s->module_len = len;
+
+	if (c->protocols) {
+		for (p = c->protocols; p->next; p = p->next);
+		p->next = s;
+	}
+	else {
+		c->protocols = s;
+	}
+}
+
+void config_process_uri(config_t *c, char *line, size_t len)
+{
+	uri_t *p, *s;
+
+	DEBUG("processing uri");
+	s = calloc(1, sizeof(uri_t));
+	s->uri = line;
+	s->uri_len = len;
+	if (c->uris) {
+		for (p = c->uris; p->next; p = p->next);
+		p->next = s;
+	}
+	else {
+		c->uris = s;
+	}
+}
+
 int config_process_line(config_t *c, char *line, size_t len)
 {
 	char word[len];
@@ -139,15 +176,11 @@ int config_process_line(config_t *c, char *line, size_t len)
 	/* ignore comments */
 	if (line[0] == '#') return 0;
 
-	/* print anything else */
-	DEBUG("%s", line);
-
 	/* grab first word */
 	for (int i = 0; i < len && !isspace(*line);) {
 		word[i] = *(line++);
 		word[++i] = '\0';
 	}
-	DEBUG("word: '%s'", word);
 
 	/* strip leading whitespace from remaining line */
 	while (isblank(*line)){line++;len--;}
@@ -157,17 +190,15 @@ int config_process_line(config_t *c, char *line, size_t len)
 		if (!config_int_set(word, &c->loglevel, line)) {
 			FAILMSG(LSD_ERROR_CONFIG_INVALID, "non numeric argument to %s", word);
 		}
-		DEBUG("%s set", word);
 	}
-
-	/* TODO: proto */
-	if (!strcmp(word, "proto")) {
-		DEBUG("processing proto");
+	else if (!strcmp(word, "proto")) {	/* protocols */
+		config_process_proto(c, line, len);
 	}
-
-	/* TODO: uri */
-	if (!strcmp(word, "uri")) {
-		DEBUG("processing uri");
+	else if (!strcmp(word, "uri")) {	/* uris */
+		config_process_uri(c, line, len);
+	}
+	else {
+		FAILMSG(LSD_ERROR_CONFIG_INVALID, "unknown config directive '%s'", word);
 	}
 
 	return 0;
@@ -203,10 +234,22 @@ int config_read(config_t *c, size_t maplen)
 	return err;
 }
 
-void config_close(config_t c)
+void config_close(config_t *c)
 {
-	munmap(c.map, c.sb.st_size);
-	close(c.fd);
+	void *t;
+
+	for (proto_t *p = c->protocols; p; ) {
+		t = p;
+		p = p->next;
+		free(t);
+	}
+	for (uri_t *p = c->uris; p; ) {
+		t = p;
+		p = p->next;
+		free(t);
+	}
+	munmap(c->map, c->sb.st_size);
+	close(c->fd);
 	shm_unlink(CONFIG_SHM);
 }
 

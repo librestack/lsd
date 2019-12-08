@@ -75,8 +75,8 @@ struct config_s {
 	char *map;
 	int fd;
 	CONFIG_ITEMS(X)
-	proto_t protocols;
-	uri_t	uris;
+	proto_t *protocols;
+	uri_t	*uris;
 };
 #undef X
 
@@ -88,7 +88,7 @@ struct config_s {
 
 extern config_t config;
 
-void	config_close(config_t c);
+void	config_close(config_t *c);
 int	config_init(int argc, char **argv, config_t *c);
 
 #endif /* __LSD_CONFIG */

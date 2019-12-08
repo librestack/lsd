@@ -80,7 +80,7 @@ int server_listen()
 #define CLEANUP(msg) { \
 		ERROR(msg, strerror(errno)); \
 		freeaddrinfo(addr); \
-		_exit(EXIT_FAILURE); }
+		return -1; }
 
 	for (p = getaddrs(&addr); p; p = p->ai_next) {
 		if (getnameinfo(p->ai_addr, p->ai_addrlen, h, NI_MAXHOST, NULL, 0, NI_NUMERICSERV))
@@ -156,7 +156,8 @@ int main(int argc, char **argv)
 	INFO("Starting up...");
 
 	sock = server_listen();
-	assert(sock != -1); /* FIXME */
+	if (sock == -1)
+		goto exit_controller;
 
 	/* TODO: drop privs */
 
@@ -221,8 +222,8 @@ int main(int argc, char **argv)
 			_exit(0);
 		}
 	}
-
-	config_close(config);
+exit_controller:
+	config_close(&config);
 
 	DEBUG("controller exiting");
 
