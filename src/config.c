@@ -135,6 +135,8 @@ int config_process_proto(config_t *c, char *line, size_t len)
 
 	/* eg. telnet  22/tcp          localhost */
 
+	/* FIXME: lots of off-stack refs in here */
+
 	DEBUG("processing proto");
 	s = calloc(1, sizeof(proto_t));
 	s->module = line;			/* module is first */
@@ -150,9 +152,12 @@ int config_process_proto(config_t *c, char *line, size_t len)
 	s->port = (unsigned short) port;
 
 	while (len-- && (*(line++) != '/'));	/* skip to slash */
-	s->proto = ++line;			/* protocol after the slash */
+	s->proto = line;			/* protocol after the slash */
 	while (len-- && !isspace(*(line++)));	/* find the end */
 	s->proto_len = line - s->proto;		/* write the length */
+	s->proto = strndup(s->proto, s->proto_len);
+
+	DEBUG("len: %i", (int)s->proto_len);
 
 	while (isblank(*line)){line++;len--;}	/* skip whitespace */
 	s->addr = line;				/* finally the addr */
@@ -263,6 +268,7 @@ void config_close(config_t *c)
 	void *t;
 
 	for (proto_t *p = c->protocols; p; ) {
+		free(p->proto);
 		t = p;
 		p = p->next;
 		free(t);

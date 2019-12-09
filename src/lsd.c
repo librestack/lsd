@@ -29,6 +29,7 @@
 #include <error.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ipc.h>
@@ -45,61 +46,88 @@
 #define HANDLER_RDY 0	/* semapahore to track ready handlers */
 #define HANDLER_BSY 1	/* semapahore to track busy handlers */
 
-/* TODO: listen on 80 + 443 if root, 8080 + 8443 if not */
-
 int handlers = 0;
 int pid;
 int run = 1;
 int semid;
+int *socks = NULL;
 
-struct addrinfo * getaddrs(struct addrinfo **servinfo)
+struct addrinfo * getaddrs(struct addrinfo **servinfo, struct addrinfo *hints, char *port)
 {
-	struct addrinfo hints;
 	int status;
-	const char tcpport[5] = "80";
 
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_INET6;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
-
-	if ((status = getaddrinfo(NULL, tcpport, &hints, servinfo)) != 0)
+	if ((status = getaddrinfo(NULL, port, hints, servinfo)) != 0)
 		DIE("%s", strerror(status));
 
 	return *servinfo;
 }
 
-int server_listen()
+int server_listen(config_t *c, int **socks)
 {
-	struct addrinfo *p = NULL;
+	struct addrinfo hints;
+	struct addrinfo *a = NULL;
 	struct addrinfo *addr = NULL;
 	char h[NI_MAXHOST];
+	char cport[6];
+	int n = 0;
 	int sock = -1;
 	int yes = 1;
+
+	proto_t *p;
+
+	/* allocate an array for sockets */
+	for (proto_t *p = c->protocols; p; p = p->next) { n++; }
+	if (!n) return 0;
+	*socks = calloc(n, sizeof(int));
+	n = 0;
+
+	/* listen on all ports and protocols listed in config */
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_INET6;
+	hints.ai_flags = AI_PASSIVE;
+
+	for (p = c->protocols; p; p = p->next) {
+		DEBUG("Protocol: %s", p->proto);
+		if (!strncmp(p->proto, "udp", 3)) {
+			DEBUG("listen on %u/udp", p->port);
+			hints.ai_socktype = SOCK_DGRAM;
+			sprintf(cport, "%u", p->port);
+		}
+		else if (!strncmp(p->proto, "tcp", 3)) {
+			DEBUG("listen on %u/tcp", p->port);
+			hints.ai_socktype = SOCK_STREAM;
+			sprintf(cport, "%u", p->port);
+		}
+		else {
+			DEBUG("listen on %u/wtf", p->port);
+			sprintf(cport, "%u", p->port);
+		}
 
 #define CLEANUP(msg) { \
 		ERROR(msg, strerror(errno)); \
 		freeaddrinfo(addr); \
 		return -1; }
 
-	for (p = getaddrs(&addr); p; p = p->ai_next) {
-		if (getnameinfo(p->ai_addr, p->ai_addrlen, h, NI_MAXHOST, NULL, 0, NI_NUMERICSERV))
-			CLEANUP("getnameinfo() error: %s");
-		DEBUG("Binding to %s", h);
-		if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
-			CLEANUP("socket() error: %s");
-		if ((setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))) == -1)
-			CLEANUP("setsockopt() error: %s");
-		if ((bind(sock, p->ai_addr, p->ai_addrlen)) == -1)
-			CLEANUP("bind() error: %s");
-	}
+		for (a = getaddrs(&addr, &hints, cport); a; a = a->ai_next) {
+			if (getnameinfo(a->ai_addr, a->ai_addrlen, h, NI_MAXHOST, NULL, 0, NI_NUMERICSERV))
+				CLEANUP("getnameinfo() error: %s");
+			DEBUG("Binding to %s", h);
+			if ((sock = socket(a->ai_family, a->ai_socktype, a->ai_protocol)) == -1)
+				CLEANUP("socket() error: %s");
+			if ((setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))) == -1)
+				CLEANUP("setsockopt() error: %s");
+			if ((bind(sock, a->ai_addr, a->ai_addrlen)) == -1)
+				CLEANUP("bind() error: %s");
+		}
 #undef CLEANUP
-	freeaddrinfo(addr);
+		freeaddrinfo(addr);
+		(*socks)[n] = sock;
+		if ((listen((sock), BACKLOG)) == -1)
+			DIE("listen() error: %s", strerror(errno));
+		n++;
+	}
 
-	if ((listen(sock, BACKLOG)) == -1)
-		DIE("listen() error: %s", strerror(errno));
-
-	return sock;
+	return n;
 }
 
 void sigchld_handler(int signo)
@@ -140,6 +168,8 @@ void sigint_handler(int signo)
 	}
 	else {
 		DEBUG("INT received by handler");
+		free(socks);
+		config_close(&config);
 		_exit(EXIT_SUCCESS);
 	}
 }
@@ -148,15 +178,14 @@ int main(int argc, char **argv)
 {
 	int busy;
 	int err;
-	int sock;
+	int n;
 	struct sembuf sop[2];
 
 	if ((err = config_init(argc, argv, &config)) != 0) return err;
 
 	INFO("Starting up...");
 
-	sock = server_listen();
-	if (sock == -1)
+	if (!(n = server_listen(&config, &socks)))
 		goto exit_controller;
 
 	/* TODO: drop privs */
@@ -179,6 +208,8 @@ int main(int argc, char **argv)
 	signal(SIGCHLD, sigchld_handler);
 	signal(SIGHUP, sighup_handler);
 	signal(SIGINT, sigint_handler);
+
+	if (!socks[0]) run = 0; /* no sockets, give up */
 
 	while (run) {
 		if ((err = semop(semid, sop, 1)) == -1) {
@@ -203,7 +234,7 @@ int main(int argc, char **argv)
 			/* child handler process */
 			DEBUG("handler %i started", handlers);
 
-			int conn = accept(sock, NULL, NULL);
+			int conn = accept(socks[0], NULL, NULL); /* FIXME - select */
 			DEBUG("handler accepted connection");
 
 			/* swap ready for busy semaphore */
@@ -223,6 +254,7 @@ int main(int argc, char **argv)
 		}
 	}
 exit_controller:
+	free(socks);
 	config_close(&config);
 
 	DEBUG("controller exiting");
