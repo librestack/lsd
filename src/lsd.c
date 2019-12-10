@@ -22,6 +22,7 @@
  */
 
 #include "config.h"
+#include "handler.h"
 #include "log.h"
 #include "lsd.h"
 #include <assert.h>
@@ -39,12 +40,6 @@
 #include <sys/wait.h>
 #include <netdb.h>
 #include <unistd.h>
-
-#define BACKLOG 100
-#define HANDLER_MAX 100 /* maximum number of handler processes */
-#define HANDLER_MIN 5	/* minimum number of handlers to keep ready */
-#define HANDLER_RDY 0	/* semapahore to track ready handlers */
-#define HANDLER_BSY 1	/* semapahore to track busy handlers */
 
 int handlers = 0;
 int pid;
@@ -182,46 +177,46 @@ int main(int argc, char **argv)
 	int n;
 	struct sembuf sop[2];
 
+	/* process args and config */
 	if ((err = config_init(argc, argv, &config)) != 0) return err;
 
 	INFO("Starting up...");
 
+	/* listen on sockets */
 	if (!(n = server_listen(&config, &socks)))
 		goto exit_controller;
+	if (!socks[0]) goto exit_controller; /* no sockets, give up */
 
 	/* TODO: drop privs */
 
 	/* TODO: daemonize? fork */
 
+	/* initialize semaphores */
 	semid = semget(IPC_PRIVATE, 2, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
 	if (semid == -1) DIE("Unable to create semaphore");
-
-	/* initialize semaphores */
 	if ((err = semctl(semid, HANDLER_RDY, SETVAL, HANDLER_MIN)) == -1)
 			error_at_line(1, errno, __FILE__, __LINE__-1, "semctl %i", errno);
 	if ((err = semctl(semid, HANDLER_BSY, SETVAL, 0)) == -1)
 			error_at_line(1, errno, __FILE__, __LINE__-1, "semctl %i", errno);
-
 	sop[0].sem_num = HANDLER_RDY;
 	sop[0].sem_op = -1; /* decrement */
 	sop[0].sem_flg = 0;
 
+	/* set signal handlers */
 	signal(SIGCHLD, sigchld_handler);
 	signal(SIGHUP, sighup_handler);
 	signal(SIGINT, sigint_handler);
 
-	if (!socks[0]) run = 0; /* no sockets, give up */
-
 	while (run) {
+		/* get HANDLER_RDY semaphore before continuing */
 		if ((err = semop(semid, sop, 1)) == -1) {
 			if (errno == EINTR) continue;
 			break;
 		}
-
+		if (handlers >= HANDLER_MAX) continue;
 		if ((busy = semctl(semid, HANDLER_BSY, GETVAL)) == -1)
 			CONTINUE(LOG_ERROR, "unable to read busy semaphore");
 		if ((handlers - busy) >= HANDLER_MIN) continue;
-
 		DEBUG("forking new handler");
 		if ((pid = fork()) == -1) {
 			ERROR("fork failed");
@@ -231,69 +226,14 @@ int main(int argc, char **argv)
 			continue;
 		}
 		handlers++;
-		if (pid == 0) {
-			int conn = 0;
-			int nfds = 0;
-			int ret;
-			fd_set rfds, wfds, efds;
-
-			/* child handler process */
+		if (pid == 0) { /* child handler process */
 			DEBUG("handler %i started", handlers);
-
-			/* prepare file descriptors for select() */
-			FD_ZERO(&rfds);
-			FD_ZERO(&wfds);
-			FD_ZERO(&efds);
-			for (int i = 0; i < n; i++) {
-				DEBUG("select() on sock %i", socks[i]);
-				FD_SET(socks[i], &rfds);
-				FD_SET(socks[i], &wfds);
-				FD_SET(socks[i], &efds);
-				if (socks[i] > nfds) nfds = socks[i];
-			}
-			nfds++; /* highest socket number + 1 */
-			ret = select(nfds, &rfds, &wfds, &efds, NULL);
-			if (ret == -1)
-				perror("select()");
-			else if (ret) {
-				for (int i = 0; i < n; i++) {
-					if (FD_ISSET(socks[i], &rfds)) {
-						conn = accept(socks[i], NULL, NULL); /* TODO: EGAIN */
-						if (conn == -1) perror("accept()");
-					}
-					if (FD_ISSET(socks[i], &wfds)) {
-						conn = accept(socks[i], NULL, NULL); /* TODO: EGAIN */
-						if (conn == -1) perror("accept()");
-					}
-					if (FD_ISSET(socks[i], &efds)) {
-						conn = accept(socks[i], NULL, NULL); /* TODO: EGAIN */
-						if (conn == -1) perror("accept()");
-					}
-				}
-				if (conn > 0) {
-					DEBUG("handler accepted connection");
-
-					/* swap ready for busy semaphore */
-					sop[0].sem_num = HANDLER_RDY;
-					sop[0].sem_op = 1;
-					sop[0].sem_flg = 0;
-					sop[1].sem_num = HANDLER_BSY;
-					sop[1].sem_op = 1;
-					sop[1].sem_flg = SEM_UNDO; /* release semaphore on exit */
-					semop(semid, sop, 2);
-
-					close(conn);
-					sleep(2); /* pretend we're doing something */
-				}
-			}
-			DEBUG("handler exiting");
-			_exit(0);
+			handler_start(n);
 		}
 	}
 exit_controller:
 	free(socks);
 	config_close(&config);
-
 	DEBUG("controller exiting");
 
 	return 0;
