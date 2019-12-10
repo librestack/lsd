@@ -47,27 +47,15 @@ int run = 1;
 int semid;
 int *socks = NULL;
 
-struct addrinfo * getaddrs(const char *addr, struct addrinfo **servinfo, struct addrinfo *hints, char *port)
-{
-	int status;
-
-	if ((status = getaddrinfo(addr, port, hints, servinfo)) != 0)
-		DIE("%s", strerror(status));
-
-	return *servinfo;
-}
-
 int server_listen(config_t *c, int **socks)
 {
 	struct addrinfo hints;
 	struct addrinfo *a = NULL;
-	struct addrinfo *addr = NULL;
 	char h[NI_MAXHOST];
 	char cport[6];
 	int n = 0;
 	int sock = -1;
 	int yes = 1;
-
 	proto_t *p;
 
 	/* allocate an array for sockets */
@@ -99,10 +87,10 @@ int server_listen(config_t *c, int **socks)
 
 #define CLEANUP(msg) { \
 		ERROR(msg, strerror(errno)); \
-		freeaddrinfo(addr); \
+		freeaddrinfo(a); \
 		return -1; }
 
-		for (a = getaddrs(p->addr, &addr, &hints, cport); a; a = a->ai_next) {
+		for (getaddrinfo(p->addr, cport, &hints, &a); a; a = a->ai_next) {
 			if (getnameinfo(a->ai_addr, a->ai_addrlen, h, NI_MAXHOST, NULL, 0, NI_NUMERICSERV))
 				CLEANUP("getnameinfo() error: %s");
 			DEBUG("Binding to %s", h);
@@ -114,7 +102,7 @@ int server_listen(config_t *c, int **socks)
 				CLEANUP("bind() error: %s");
 		}
 #undef CLEANUP
-		freeaddrinfo(addr);
+		freeaddrinfo(a);
 		(*socks)[n] = sock;
 		DEBUG("listening on socket %i", sock);
 		if ((listen((sock), BACKLOG)) == -1)
