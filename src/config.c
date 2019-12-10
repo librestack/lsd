@@ -27,6 +27,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -157,9 +158,16 @@ int config_process_proto(config_t *c, char *line, size_t len)
 	s->proto = strndup(s->proto, s->proto_len);
 
 	while (isblank(*line)){line++;len--;}	/* skip whitespace */
-	s->addr = line;				/* finally the addr */
-	s->addr_len = len;			/* write the length */
-	s->addr = strndup(s->addr, s->addr_len);
+
+	if ((int)len > 0) {			/* address to bind to */
+		s->addr_len = len;
+		s->addr = strndup(line, s->addr_len);
+	}
+	else { /* no address specified for bind, default to any */
+		s->addr_len = 2;
+		s->addr = malloc(3);
+		snprintf(s->addr, 3, "::");
+	}
 
 	if (c->protocols) {
 		for (p = c->protocols; p->next; p = p->next);

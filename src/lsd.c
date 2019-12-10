@@ -47,11 +47,11 @@ int run = 1;
 int semid;
 int *socks = NULL;
 
-struct addrinfo * getaddrs(struct addrinfo **servinfo, struct addrinfo *hints, char *port)
+struct addrinfo * getaddrs(const char *addr, struct addrinfo **servinfo, struct addrinfo *hints, char *port)
 {
 	int status;
 
-	if ((status = getaddrinfo(NULL, port, hints, servinfo)) != 0)
+	if ((status = getaddrinfo(addr, port, hints, servinfo)) != 0)
 		DIE("%s", strerror(status));
 
 	return *servinfo;
@@ -78,9 +78,8 @@ int server_listen(config_t *c, int **socks)
 
 	/* listen on all ports and protocols listed in config */
 	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_INET6;
+	hints.ai_family = AF_UNSPEC;
 	hints.ai_flags = AI_PASSIVE;
-
 	for (p = c->protocols; p; p = p->next) {
 		DEBUG("Protocol: %s", p->proto);
 		if (!strncmp(p->proto, "udp", 3)) {
@@ -103,7 +102,7 @@ int server_listen(config_t *c, int **socks)
 		freeaddrinfo(addr); \
 		return -1; }
 
-		for (a = getaddrs(&addr, &hints, cport); a; a = a->ai_next) {
+		for (a = getaddrs(p->addr, &addr, &hints, cport); a; a = a->ai_next) {
 			if (getnameinfo(a->ai_addr, a->ai_addrlen, h, NI_MAXHOST, NULL, 0, NI_NUMERICSERV))
 				CLEANUP("getnameinfo() error: %s");
 			DEBUG("Binding to %s", h);
