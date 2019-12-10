@@ -159,7 +159,7 @@ int config_process_proto(config_t *c, char *line, size_t len)
 
 	while (isblank(*line)){line++;len--;}	/* skip whitespace */
 
-	if ((int)len > 0) {			/* address to bind to */
+	if ((len = (int)strlen(line)) > 0) {	/* address to bind to */
 		s->addr_len = len;
 		s->addr = strndup(line, s->addr_len);
 	}
