@@ -24,6 +24,7 @@
 #ifndef __LSD_CONFIG
 #define __LSD_CONFIG
 
+#include <lmdb.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -83,11 +84,19 @@ struct config_s {
 #define CONFIG_DEFAULTS(key, ks, kl, type, var, value, helptxt) config.key = value;
 #define CONFIG_MIN(k, min, max) if (strcmp(key, k) == 0) return min;
 #define CONFIG_MAX(k, min, max) if (strcmp(key, k) == 0) return max;
+#define CONFIG_DB_MAX 32 /* max number of named lmdb databases */
+#define CONFIG_DB_PATH "/var/cache/lsd/"
 #define CONFIG_SHM "/lsd.conf" /* name of shared memory link for config map */
 
 extern config_t config;
+extern MDB_env *env;
+
+/* pack key into MDB_val. If len is NULL, use strlen() */
+#define K(key) KV(key, NULL);
+MDB_val V(char *key, size_t *len);
 
 void	config_close(config_t *c);
 int	config_init(int argc, char **argv, config_t *c);
+void	config_init_db();
 
 #endif /* __LSD_CONFIG */

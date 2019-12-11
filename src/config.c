@@ -23,6 +23,7 @@
 
 #include "config.h"
 #include "err.h"
+#include "lsd.h"
 #include "log.h"
 #include <ctype.h>
 #include <fcntl.h>
@@ -34,6 +35,15 @@
 #include <sys/types.h>
 
 config_t config;
+MDB_env *env;
+
+MDB_val V(char *c, size_t *len)
+{
+	MDB_val k;
+	k.mv_size = (len) ? *len : strlen(c);
+	k.mv_data = c;
+	return k;
+}
 
 int config_bool_convert(char *val, int *ival)
 {
@@ -289,6 +299,24 @@ void config_close(config_t *c)
 	munmap(c->map, c->sb.st_size);
 	close(c->fd);
 	shm_unlink(CONFIG_SHM);
+	mdb_env_close(env);
+}
+
+/*
+int config_op(config_op_t op, MDB_val *k, MDB_val *v)
+{
+	static MDB_env *env;
+	return 0;
+}
+*/
+
+void config_init_db()
+{
+	mdb_env_create(&env);
+	mdb_env_set_maxreaders(env, HANDLER_MAX + 1);
+	mdb_env_set_mapsize(env, 10485760); /* TODO: how big a map do we need? */
+	mdb_env_set_maxdbs(env, CONFIG_DB_MAX);
+	mdb_env_open(env, CONFIG_DB_PATH, 0, 0600); /* TODO: set ownership on dropprivs */
 }
 
 int config_init(int argc, char **argv, config_t *c)
@@ -297,6 +325,9 @@ int config_init(int argc, char **argv, config_t *c)
 	static int fd;
 	char *map;
 	static struct stat sb;
+
+	/* initialize lmdb */
+	config_init_db();
 
 	memset(c, 0, sizeof(config_t));
 

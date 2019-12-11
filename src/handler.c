@@ -49,6 +49,10 @@ void handler_start(int n)
 	struct sembuf sop[2];
 	fd_set fds[3];
 
+	/* handler needs own database env */
+	mdb_env_close(env);
+	config_init_db();
+
 	/* prepare file descriptors for select() */
 	for (int i = 0; i < 3; i++) { FD_ZERO(&fds[i]); }
 	for (int i = 0; i < n; i++) {

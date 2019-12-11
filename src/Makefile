@@ -21,7 +21,7 @@
 
 OBJECTS:=$(PROGRAM).o config.o err.o handler.o log.o
 
-LDFLAGS:=-lrt
+LDFLAGS:=-lrt -llmdb
 
 .PHONY:		all clean
 
