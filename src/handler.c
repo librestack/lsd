@@ -47,41 +47,32 @@ void handler_start(int n)
 	int nfds = 0;
 	int ret;
 	struct sembuf sop[2];
-	fd_set rfds, wfds, efds;
+	fd_set fds[3];
 
 	/* prepare file descriptors for select() */
-	FD_ZERO(&rfds);
-	FD_ZERO(&wfds);
-	FD_ZERO(&efds);
+	for (int i = 0; i < 3; i++) { FD_ZERO(&fds[i]); }
 	for (int i = 0; i < n; i++) {
 		DEBUG("select() on sock %i", socks[i]);
-		FD_SET(socks[i], &rfds);
-		FD_SET(socks[i], &wfds);
-		FD_SET(socks[i], &efds);
+		for (int j = 0; j < 3; j++) {
+			FD_SET(socks[i], &fds[j]);
+		}
 		if (socks[i] > nfds) nfds = socks[i];
 	}
 	nfds++; /* highest socket number + 1 */
-	ret = select(nfds, &rfds, &wfds, &efds, NULL);
+	ret = select(nfds, &fds[0], &fds[1], &fds[2], NULL);
 	if (ret == -1)
 		perror("select()");
 	else if (ret) {
 		for (int i = 0; i < n; i++) {
-			if (FD_ISSET(socks[i], &rfds)) {
-				conn = accept(socks[i], NULL, NULL); /* TODO: EGAIN */
-				if (conn == -1) perror("accept()");
-			}
-			if (FD_ISSET(socks[i], &wfds)) {
-				conn = accept(socks[i], NULL, NULL); /* TODO: EGAIN */
-				if (conn == -1) perror("accept()");
-			}
-			if (FD_ISSET(socks[i], &efds)) {
-				conn = accept(socks[i], NULL, NULL); /* TODO: EGAIN */
-				if (conn == -1) perror("accept()");
+			for (int j = 0; j < 3; j++) {
+				if (FD_ISSET(socks[i], &fds[j])) {
+					conn = accept(socks[i], NULL, NULL); /* TODO: EGAIN */
+					if (conn == -1) perror("accept()");
+				}
 			}
 		}
 		if (conn > 0) {
 			DEBUG("handler accepted connection");
-
 			/* swap ready for busy semaphore */
 			sop[0].sem_num = HANDLER_RDY;
 			sop[0].sem_op = 1;
@@ -90,7 +81,6 @@ void handler_start(int n)
 			sop[1].sem_op = 1;
 			sop[1].sem_flg = SEM_UNDO; /* release semaphore on exit */
 			semop(semid, sop, 2);
-
 			close(conn);
 			sleep(2); /* pretend we're doing something */
 		}
