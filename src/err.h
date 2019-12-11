@@ -35,7 +35,9 @@
 	X(LSD_ERROR_CONFIG_MMAP_FAIL,	"Unable to map config") \
 	X(LSD_ERROR_CONFIG_SHM_FAIL,	"Unable to open shared memory") \
 	X(LSD_ERROR_CONFIG_TRUNC_FAIL,	"Ftruncate failed on config map") \
-	X(LSD_ERROR_CONFIG_INVALID,	"Error in config")
+	X(LSD_ERROR_CONFIG_INVALID,	"Error in config") \
+	X(LSD_ERROR_INVALID_PROTOCOL,	"Invalid protocol") \
+	X(LSD_ERROR_GETADDRINFO,	"Unable to translate address")
 #undef X
 
 #define LSD_ERROR_MSG(name, msg) case name: return msg;

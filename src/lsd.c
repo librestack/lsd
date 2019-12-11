@@ -22,6 +22,7 @@
  */
 
 #include "config.h"
+#include "err.h"
 #include "handler.h"
 #include "log.h"
 #include "lsd.h"
@@ -51,7 +52,6 @@ int server_listen(config_t *c, int **socks)
 {
 	struct addrinfo hints;
 	struct addrinfo *a = NULL;
-	char h[NI_MAXHOST];
 	char cport[6];
 	int n = 0;
 	int sock = -1;
@@ -69,39 +69,28 @@ int server_listen(config_t *c, int **socks)
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_flags = AI_PASSIVE;
 	for (p = c->protocols; p; p = p->next) {
-		DEBUG("Protocol: %s", p->proto);
 		if (!strncmp(p->proto, "udp", 3)) {
-			DEBUG("listen on %u/udp", p->port);
 			hints.ai_socktype = SOCK_DGRAM;
-			sprintf(cport, "%u", p->port);
 		}
 		else if (!strncmp(p->proto, "tcp", 3)) {
-			DEBUG("listen on %u/tcp", p->port);
 			hints.ai_socktype = SOCK_STREAM;
-			sprintf(cport, "%u", p->port);
 		}
 		else {
-			DEBUG("listen on %u/wtf", p->port);
-			sprintf(cport, "%u", p->port);
+			ERROR("Invalid protocol '%s'", p->proto);
+			return 0;
 		}
-
-#define CLEANUP(msg) { \
-		ERROR(msg, strerror(errno)); \
-		freeaddrinfo(a); \
-		return -1; }
-
-		for (getaddrinfo(p->addr, cport, &hints, &a); a; a = a->ai_next) {
-			if (getnameinfo(a->ai_addr, a->ai_addrlen, h, NI_MAXHOST, NULL, 0, NI_NUMERICSERV))
-				CLEANUP("getnameinfo() error: %s");
-			DEBUG("Binding to %s", h);
+		DEBUG("listen on %u/%s", p->port, p->proto);
+		sprintf(cport, "%u", p->port);
+		for (int e = getaddrinfo(p->addr, cport, &hints, &a); a; a = a->ai_next) {
+			if (e) FAILMSG(LSD_ERROR_GETADDRINFO, strerror(e));
 			if ((sock = socket(a->ai_family, a->ai_socktype, a->ai_protocol)) == -1)
-				CLEANUP("socket() error: %s");
+				continue;
 			if ((setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))) == -1)
-				CLEANUP("setsockopt() error: %s");
+				continue;
 			if ((bind(sock, a->ai_addr, a->ai_addrlen)) == -1)
-				CLEANUP("bind() error: %s");
+				continue;
+			break;
 		}
-#undef CLEANUP
 		freeaddrinfo(a);
 		(*socks)[n] = sock;
 		DEBUG("listening on socket %i", sock);
@@ -172,7 +161,6 @@ int main(int argc, char **argv)
 	/* listen on sockets */
 	if (!(n = server_listen(&config, &socks)))
 		goto exit_controller;
-	if (!socks[0]) goto exit_controller; /* no sockets, give up */
 
 	/* TODO: drop privs */
 
