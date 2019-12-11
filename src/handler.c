@@ -71,7 +71,25 @@ void handler_start(int n)
 			for (int j = 0; j < 3; j++) {
 				if (FD_ISSET(socks[i], &fds[j])) {
 					conn = accept(socks[i], NULL, NULL); /* TODO: EGAIN */
-					if (conn == -1) perror("accept()");
+					if (conn == -1) {
+						switch (errno) {
+						case EBADF:
+							DEBUG("accept(): BADF");
+							break;
+						case EINVAL:
+							DEBUG("accept(): EINVAL");
+							break;
+						case ENOTSOCK:
+							DEBUG("accept(): ENOTSOCK");
+							break;
+						case EOPNOTSUPP:
+							/* TODO: not SOCK_STREAM */
+							DEBUG("accept(): not SOCK_STREAM");
+							break;
+						default: /* FIXME FIXME FIXME */
+							perror("accept()");
+						}
+					}
 				}
 			}
 		}
@@ -90,7 +108,7 @@ void handler_start(int n)
 		}
 	}
 	free(socks);
-	config_close(&config);
+	config_close();
 	DEBUG("handler exiting");
 	_exit(0);
 }

@@ -26,6 +26,7 @@
 #include "handler.h"
 #include "log.h"
 #include "lsd.h"
+#include <arpa/inet.h>
 #include <assert.h>
 #include <errno.h>
 #include <error.h>
@@ -44,45 +45,43 @@
 
 int handlers = 0;
 int pid;
-int run = 1;
+int run = 0;
 int semid;
 int *socks = NULL;
 
-int server_listen(config_t *c, int **socks)
+int server_listen()
 {
 	struct addrinfo hints;
 	struct addrinfo *a = NULL;
+	struct addrinfo *ai = NULL;
 	char cport[6];
 	int n = 0;
 	int sock = -1;
 	int yes = 1;
 	proto_t *p;
+	MDB_val val;
 
 	/* allocate an array for sockets */
-	for (proto_t *p = c->protocols; p; p = p->next) { n++; }
+	while (config_yield(DB_PROTO, "proto", &val) == CONFIG_NEXT) { n++; }
+	config_yield(0, NULL, NULL);
+	DEBUG("n = %i", n);
+
 	if (!n) return 0;
-	*socks = calloc(n, sizeof(int));
+	socks = calloc(n, sizeof(int));
 	n = 0;
 
 	/* listen on all ports and protocols listed in config */
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_flags = AI_PASSIVE;
-	for (p = c->protocols; p; p = p->next) {
-		if (!strncmp(p->proto, "udp", 3)) {
-			hints.ai_socktype = SOCK_DGRAM;
-		}
-		else if (!strncmp(p->proto, "tcp", 3)) {
-			hints.ai_socktype = SOCK_STREAM;
-		}
-		else {
-			ERROR("Invalid protocol '%s'", p->proto);
-			return 0;
-		}
-		DEBUG("listen on %u/%s", p->port, p->proto);
+	while (config_yield(DB_PROTO, "proto", &val) == CONFIG_NEXT) {
+		p = val.mv_data;
+		hints.ai_socktype = p->socktype;
+		hints.ai_protocol = p->protocol; /* optional */
 		sprintf(cport, "%u", p->port);
 		for (int e = getaddrinfo(p->addr, cport, &hints, &a); a; a = a->ai_next) {
 			if (e) FAILMSG(LSD_ERROR_GETADDRINFO, strerror(e));
+			if (!ai) ai = a;
 			if ((sock = socket(a->ai_family, a->ai_socktype, a->ai_protocol)) == -1)
 				continue;
 			if ((setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))) == -1)
@@ -91,18 +90,23 @@ int server_listen(config_t *c, int **socks)
 				continue;
 			break;
 		}
-		freeaddrinfo(a);
-		(*socks)[n] = sock;
-		DEBUG("listening on socket %i", sock);
-		if ((listen((sock), BACKLOG)) == -1)
-			DIE("listen() error: %s", strerror(errno));
-		n++;
+		freeaddrinfo(ai); ai = NULL;
+		if (sock != -1) {
+			if (p->socktype == SOCK_STREAM) {
+				(socks)[n] = sock;
+				INFO("Listening on [%s]:%s", p->addr, cport);
+				if ((listen((sock), BACKLOG)) == -1)
+					DIE("listen() error: %s", strerror(errno));
+			}
+			n++;
+		}
 	}
+	config_yield(0, NULL, NULL);
 
 	return n;
 }
 
-void sigchld_handler(int signo)
+void sigchld_handler(int __attribute__((unused)) signo)
 {
 	struct sembuf sop;
 
@@ -119,20 +123,20 @@ void sigchld_handler(int signo)
 	}
 }
 
-void sighup_handler(int signo)
+void sighup_handler(int __attribute__((unused)) signo)
 {
 	if (pid > 0) {
 		DEBUG("HUP received by controller");
-		/* TODO: load/process and switch to new config and signal
-		 * handlers */
+		/* reload config */
+		DEBUG("reloading config");
+		config_init(0, NULL);
 	}
 	else {
 		DEBUG("HUP received by handler");
-		/* TODO: switch to new config */
 	}
 }
 
-void sigint_handler(int signo)
+void sigint_handler(int __attribute__((unused)) signo)
 {
 	if (pid > 0) {
 		DEBUG("INT received by controller");
@@ -141,7 +145,7 @@ void sigint_handler(int signo)
 	else {
 		DEBUG("INT received by handler");
 		free(socks);
-		config_close(&config);
+		//config_close();
 		_exit(EXIT_SUCCESS);
 	}
 }
@@ -150,17 +154,21 @@ int main(int argc, char **argv)
 {
 	int busy;
 	int err;
-	int n;
 	struct sembuf sop[2];
 
 	/* process args and config */
-	if ((err = config_init(argc, argv, &config)) != 0) return err;
+	if ((err = config_init(argc, argv)) != 0) return err;
+
+	/* if we've not been told to start, don't */
+	if (!run) goto exit_controller;
 
 	INFO("Starting up...");
 
 	/* listen on sockets */
-	if (!(n = server_listen(&config, &socks)))
+	if (!(run = server_listen(&socks))) {
+		INFO("No protocols configured");
 		goto exit_controller;
+	}
 
 	/* TODO: drop privs */
 
@@ -203,13 +211,13 @@ int main(int argc, char **argv)
 		handlers++;
 		if (pid == 0) { /* child handler process */
 			DEBUG("handler %i started", handlers);
-			handler_start(n);
+			handler_start(run);
 		}
 	}
 exit_controller:
 	free(socks);
-	config_close(&config);
-	DEBUG("controller exiting");
+	config_close();
+	INFO("Controller exiting");
 
 	return 0;
 }

@@ -19,7 +19,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 
-OBJECTS:=$(PROGRAM).o config.o err.o handler.o log.o
+OBJECTS:=$(PROGRAM).o config.o db.o err.o handler.o log.o
 
 LDFLAGS:=-lrt -llmdb
 
@@ -33,6 +33,8 @@ lsd:		$(OBJECTS)
 $(PROGRAM).o:	$(PROGRAM).c $(PROGRAM).h
 
 config.o:	config.c config.h
+
+db.o:		db.c db.h
 
 err.o:		err.c err.h
 

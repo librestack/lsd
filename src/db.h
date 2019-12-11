@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  *
- * log.c
+ * db.h
  *
  * this file is part of LIBRESTACK
  *
@@ -21,36 +21,20 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <assert.h>
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include "config.h"
-#include "log.h"
+#ifndef __LSD_DB
+#define __LSD_DB
 
-#define LOG_BUFSIZE 128
+#include <lmdb.h>
 
-unsigned int loglevel = LOG_LOGLEVEL_DEFAULT;
+#define DB_MAX 32 /* max number of named lmdb databases */
+#define DB_PATH "/var/cache/lsd/"
 
-void logmsg(unsigned int level, const char *fmt, ...)
-{
-	va_list argp;
-	char *mbuf = NULL;
-	char buf[LOG_BUFSIZE];
-	char *b = buf;
-	int len;
+typedef enum {
+	DB_GLOBAL,
+	DB_PROTO,
+	DB_URI,
+} config_db_idx_t;
 
-	if ((level & loglevel) != level) return;
+extern MDB_env *env;
 
-	va_start(argp, fmt);
-	len = vsnprintf(buf, LOG_BUFSIZE, fmt, argp);
-	if (len > LOG_BUFSIZE) {
-		/* need a bigger buffer, resort to malloc */
-		mbuf = malloc(len + 1);
-		vsprintf(mbuf, fmt, argp);
-		b = mbuf;
-	}
-	va_end(argp);
-	fprintf(stderr, "%s\n", b);
-	free(mbuf);
-}
+#endif /* __LSD_DB */

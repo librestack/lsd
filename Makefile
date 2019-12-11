@@ -18,14 +18,13 @@
 # along with this program (see the file COPYING in the distribution).
 # If not, see <http://www.gnu.org/licenses/>.
 
-
 PROGRAM = lsd
 export PROGRAM
 
 PREFIX = /usr/local
 export PREFIX
 
-CFLAGS += -O -Wall -Werror -g
+CFLAGS += -O -Wall -Werror -Wextra -g
 export CFLAGS
 
 .PHONY: all clean src

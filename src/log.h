@@ -42,7 +42,10 @@ enum {
 	LOG_LEVELS(LOG_ENUM)
 };
 
-#define LOG(lvl, fmt, ...) if ((lvl & config.loglevel) == lvl) logmsg(lvl, fmt __VA_OPT__(,) __VA_ARGS__)
+#define LOG_LOGLEVEL_DEFAULT 63
+extern unsigned int loglevel;
+
+#define LOG(lvl, fmt, ...) if ((lvl & loglevel) == lvl) logmsg(lvl, fmt __VA_OPT__(,) __VA_ARGS__)
 #define BREAK(lvl, fmt, ...) {LOG(lvl, fmt __VA_OPT__(,) __VA_ARGS__); break;}
 #define CONTINUE(lvl, fmt, ...) {LOG(lvl, fmt __VA_OPT__(,) __VA_ARGS__); continue;}
 #define DIE(fmt, ...) {LOG(LOG_SEVERE, fmt __VA_OPT__(,) __VA_ARGS__);  _exit(EXIT_FAILURE);}

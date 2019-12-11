@@ -24,25 +24,41 @@
 #ifndef __LSD_CONFIG
 #define __LSD_CONFIG
 
-#include <lmdb.h>
+#include "db.h"
+#include <netdb.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#define DEFAULT_LISTEN_ADDR "::"
+
 typedef enum {
 	CONFIG_TYPE_INVALID,
 	CONFIG_TYPE_BOOL,
 	CONFIG_TYPE_INT,
-	CONFIG_TYPE_STRING
+	CONFIG_TYPE_STR
 } config_type_t;
 
-/* key, short, long, type, var, value, helptext */
-#define CONFIG_ITEMS(X) \
-	X(filename, "-C", "--config", CONFIG_TYPE_STRING, char *, NULL, "path to config file") \
-	X(loglevel, "-l", "--loglevel", CONFIG_TYPE_INT, int, 15, "logging level") \
-	X(daemon, "-d", "--daemon", CONFIG_TYPE_BOOL, int, 0, "daemonize")
-#undef X
+typedef enum {
+	CONFIG_INIT,
+	CONFIG_NEXT,
+	CONFIG_FINAL,
+} config_state_t;
+
+/* key, long, short, type, default,
+ * helptext */
+#define CONFIG_STRINGS(X) \
+	X("config",	"--config",	"-C", NULL, \
+	  "path to config file") \
+	X("wibble",	"--wibble",	"-W", NULL, \
+	  "wibble wibble wibble")
+#define CONFIG_BOOLEANS(X) \
+	X("daemon",	"--daemon",	"-d", 0, \
+	  "daemonize? 1=yes, 0=no")
+#define CONFIG_INTEGERS(X) \
+	X("loglevel",	"--loglevel",	"-l", LOG_LOGLEVEL_DEFAULT, \
+	  "logging level")
 
 /* lower and upper bounds on numeric config types */
 #define CONFIG_LIMITS(X) \
@@ -52,51 +68,40 @@ typedef enum {
 
 typedef struct proto_s proto_t;
 struct proto_s {
-	proto_t	*	next;
-	char *		module;
-	char *		addr;
-	char *		proto;
-	size_t		module_len;
-	size_t		addr_len;
-	size_t		proto_len;
-	unsigned short	port;
+	uint16_t	port;
+	uint8_t		protocol;
+	uint8_t		socktype;
+	char		addr[INET6_ADDRSTRLEN];
+	char		module[];
 };
 
 typedef struct uri_s uri_t;
 struct uri_s {
-	uri_t *		next;
-	char *		uri;
 	size_t		uri_len;
+	char		uri[];
 };
-
-#define X(key, ks, kl, type, var, value, helptxt) var key;
-typedef struct config_s config_t;
-struct config_s {
-	struct stat sb;
-	char *map;
-	int fd;
-	CONFIG_ITEMS(X)
-	proto_t *protocols;
-	uri_t	*uris;
-};
-#undef X
-
-#define CONFIG_DEFAULTS(key, ks, kl, type, var, value, helptxt) config.key = value;
+#define CONFIG_IN(k, lng, shrt, deflt, helptxt) \
+	if (strcmp(key, k) == 0) return 1;
+#define CONFIG_KEY(k, lng, shrt, deflt, helptxt) \
+	if ((!strcmp(key, lng)) || (!strcmp(key, shrt))) return k;
 #define CONFIG_MIN(k, min, max) if (strcmp(key, k) == 0) return min;
 #define CONFIG_MAX(k, min, max) if (strcmp(key, k) == 0) return max;
-#define CONFIG_DB_MAX 32 /* max number of named lmdb databases */
-#define CONFIG_DB_PATH "/var/cache/lsd/"
-#define CONFIG_SHM "/lsd.conf" /* name of shared memory link for config map */
+#define CONFIG_SET(k, lng, shrt, deflt, helptxt) \
+	config_set(db, k, deflt, txn, dbi);
+#define CONFIG_SET_INT(k, lng, shrt, deflt, helptxt) \
+	config_set_int(db, k, deflt, txn, dbi);
 
-extern config_t config;
-extern MDB_env *env;
+extern int debug;
 
-/* pack key into MDB_val. If len is NULL, use strlen() */
-#define K(key) KV(key, NULL);
-MDB_val V(char *key, size_t *len);
-
-void	config_close(config_t *c);
-int	config_init(int argc, char **argv, config_t *c);
+void	config_close();
+char *	config_db(char db, char name[2]);
+int	config_get(char *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi);
+int	config_get_copy(const char *db, char *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi);
+int	config_del(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi);
+int	config_init(int argc, char **argv);
 void	config_init_db();
+int	config_set(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi);
+int	config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi);
+int	config_yield(char db, char *key, MDB_val *val);
 
 #endif /* __LSD_CONFIG */

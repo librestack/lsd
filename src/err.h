@@ -29,14 +29,13 @@
 #define LSD_ERROR_CODES(X) \
 	X(LSD_ERROR_SUCCESS,		"Success") \
 	X(LSD_ERROR_FAILURE,		"Failure") \
-	X(LSD_ERROR_INVALID_ARGS,	"Invalid arguments") \
+	X(LSD_ERROR_INVALID_OPTS,	"Invalid option") \
 	X(LSD_ERROR_CONFIG_READ,	"Unable to read config file") \
-	X(LSD_ERROR_FILE_STAT_FAIL,	"Unable to stat config file") \
-	X(LSD_ERROR_CONFIG_MMAP_FAIL,	"Unable to map config") \
-	X(LSD_ERROR_CONFIG_SHM_FAIL,	"Unable to open shared memory") \
-	X(LSD_ERROR_CONFIG_TRUNC_FAIL,	"Ftruncate failed on config map") \
+	X(LSD_ERROR_CONFIG_WRITE,	"Unable to write config data") \
 	X(LSD_ERROR_CONFIG_INVALID,	"Error in config") \
 	X(LSD_ERROR_INVALID_PROTOCOL,	"Invalid protocol") \
+	X(LSD_ERROR_CONFIG_COMMIT,	"Config updated") \
+	X(LSD_ERROR_CONFIG_ABORT,	"Config not changed") \
 	X(LSD_ERROR_GETADDRINFO,	"Unable to translate address")
 #undef X
 
@@ -47,7 +46,7 @@ enum {
 };
 
 /* log message and return code */
-int err_log(int level, int e);
+int err_log(unsigned int level, int e);
 
 /* return human readable error message for e */
 char *err_msg(int e);

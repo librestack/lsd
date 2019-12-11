@@ -28,7 +28,7 @@
 #include "err.h"
 #include "log.h"
 
-int err_log(int level, int e)
+int err_log(unsigned int level, int e)
 {
 	LOG(level, "%s", err_msg(e));
 	return e;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  *
- * log.c
+ * db.c
  *
  * this file is part of LIBRESTACK
  *
@@ -21,36 +21,6 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <assert.h>
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include "config.h"
-#include "log.h"
+#include "db.h"
 
-#define LOG_BUFSIZE 128
-
-unsigned int loglevel = LOG_LOGLEVEL_DEFAULT;
-
-void logmsg(unsigned int level, const char *fmt, ...)
-{
-	va_list argp;
-	char *mbuf = NULL;
-	char buf[LOG_BUFSIZE];
-	char *b = buf;
-	int len;
-
-	if ((level & loglevel) != level) return;
-
-	va_start(argp, fmt);
-	len = vsnprintf(buf, LOG_BUFSIZE, fmt, argp);
-	if (len > LOG_BUFSIZE) {
-		/* need a bigger buffer, resort to malloc */
-		mbuf = malloc(len + 1);
-		vsprintf(mbuf, fmt, argp);
-		b = mbuf;
-	}
-	va_end(argp);
-	fprintf(stderr, "%s\n", b);
-	free(mbuf);
-}
+MDB_env *env;
