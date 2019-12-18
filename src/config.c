@@ -755,7 +755,8 @@ int config_read(FILE *fd, MDB_txn *txn, MDB_dbi dbi[])
 	size_t len = 0;
 	char buf[LINE_MAX + 1];
 
-	//config_drop(txn, dbi); /* drop old config */
+	config_drop(txn, dbi);			/* drop old config */
+	config_defaults(txn, dbi[DB_GLOBAL]);	/* reset defaults */
 	while (fgets(buf + p, LINE_MAX, fd)) {
 		len = strlen(buf) - 1;
 		buf[len] = '\0'; /* chop newline */
