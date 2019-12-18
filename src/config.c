@@ -638,6 +638,7 @@ int (config_cmds(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi[]))
 	else if (!strcmp(last, "reset")) {
 		DEBUG("resetting database");
 		config_drop(txn, dbi);
+		config_defaults(txn, dbi[DB_GLOBAL]);
 		return LSD_ERROR_CONFIG_COMMIT;
 	}
 	else if (!strcmp(last, "start")) {
