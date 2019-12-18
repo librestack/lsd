@@ -833,10 +833,16 @@ int config_init(int argc, char **argv)
 		if ((fd = fopen(filename, "r")) == NULL) FAIL(LSD_ERROR_CONFIG_READ);
 		err = config_read(fd, txn, dbi);
 		fclose(fd);
+		/* commandline options must override config, so do this again */
+		if ((err = config_opts(&argc, argv, txn, dbi[DB_GLOBAL])))
+			goto config_init_done;
 	}
 	else if (!isatty(0)) { /* attempt to read config from stdin */
 		DEBUG("Reading config from stdin");
 		err = config_read(stdin, txn, dbi);
+		/* commandline options must override config, so do this again */
+		if ((err = config_opts(&argc, argv, txn, dbi[DB_GLOBAL])))
+			goto config_init_done;
 	}
 	else {
 		DEBUG("No config file");
