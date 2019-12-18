@@ -108,7 +108,6 @@ void handler_start(int n)
 		}
 	}
 	free(socks);
-	config_close();
 	DEBUG("handler exiting");
 	_exit(0);
 }
