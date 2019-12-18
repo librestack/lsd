@@ -606,8 +606,19 @@ config_dump_err:
 void config_drop(MDB_txn *txn, MDB_dbi dbi[])
 {
 	int err = 0;
+	int flags = 0;
+	char db[2];
+
+	/* abort txn in case of previous writes */
+	mdb_txn_abort(txn);
+	mdb_txn_begin(env, NULL, 0, &txn);
 	for (int i = 0; i <= DB_URI; i++) {
-		if ((err = mdb_drop(txn, dbi[i], 1)) != 0) {
+		flags = 0;
+		if (i > 0) flags |= MDB_DUPSORT;
+		config_db(i, db);;
+		if ((err = mdb_dbi_open(txn, db, flags, &dbi[i]))
+		|| ((err = mdb_drop(txn, dbi[i], 0)) != 0))
+		{
 			ERROR("%s(): %s", __func__, mdb_strerror(err));
 		}
 	}
