@@ -145,7 +145,7 @@ void sigint_handler(int __attribute__((unused)) signo)
 	else {
 		DEBUG("INT received by handler");
 		free(socks);
-		//config_close();
+		config_close();
 		_exit(EXIT_SUCCESS);
 	}
 }

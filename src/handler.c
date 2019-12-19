@@ -22,10 +22,12 @@
  */
 
 #include "config.h"
+#include "err.h"
 #include "handler.h"
 #include "log.h"
 #include "lsd.h"
 #include <assert.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <error.h>
 #include <fcntl.h>
@@ -41,22 +43,97 @@
 #include <netdb.h>
 #include <unistd.h>
 
+int handle_connection(int idx, int sock)
+{
+	MDB_val val = { 0, NULL };
+	proto_t *p;
+	int err = 0;
+
+	DEBUG("connection received on socket %i", idx);
+	for (int i = 0; config_yield(DB_PROTO, "proto", &val) == CONFIG_NEXT; i++) {
+		if (idx == i) break;
+	}
+	if (val.mv_size > 0) {
+		/* call handler module */
+		p = (proto_t *)val.mv_data;
+		char modname[128];
+		snprintf(modname, 127, "src/%s.so", p->module); /* FIXME: module path */
+		void *mod = dlopen(modname, RTLD_LAZY);
+		int (* init)(int, proto_t*);
+		init = dlsym(mod, "init");
+		err = init(sock, p);
+		dlclose(mod);
+	}
+	else {
+		FAIL(LSD_ERROR_NOHANDLER);
+	}
+	config_yield(0, NULL, NULL);
+
+	return err;
+}
+
+int handler_get_socket(int n, fd_set fds[], int *sock)
+{
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < 3; j++) {
+			if (FD_ISSET(socks[i], &fds[j])) {
+				*sock = accept(socks[i], NULL, NULL); /* TODO: EGAIN */
+				if (*sock == -1) {
+					switch (errno) {
+					case EBADF:
+						DEBUG("accept(): BADF");
+						break;
+					case EINVAL:
+						DEBUG("accept(): EINVAL");
+						break;
+					case ENOTSOCK:
+						DEBUG("accept(): ENOTSOCK");
+						break;
+					case EOPNOTSUPP:
+						/* TODO: not SOCK_STREAM */
+						DEBUG("accept(): not SOCK_STREAM");
+						break;
+					default: /* FIXME FIXME FIXME */
+						perror("accept()");
+					}
+				}
+				else {
+					return i;
+				}
+			}
+		}
+	}
+	return -1;
+}
+
+/* swap ready for busy semaphore so controller knows we're occupied */
+static inline void handler_semaphore_release()
+{
+	struct sembuf sop[2];
+	sop[0].sem_num = HANDLER_RDY;
+	sop[0].sem_op = 1;
+	sop[0].sem_flg = 0;
+	sop[1].sem_num = HANDLER_BSY;
+	sop[1].sem_op = 1;
+	sop[1].sem_flg = SEM_UNDO; /* release semaphore on exit */
+	semop(semid, sop, 2);
+}
+
+/* handler child process starting */
 void handler_start(int n)
 {
-	int conn = 0;
 	int nfds = 0;
 	int ret;
-	struct sembuf sop[2];
+	int sock = 0;
 	fd_set fds[3];
 
 	/* handler needs own database env */
-	mdb_env_close(env);
+	mdb_env_close(env); env = NULL;
 	config_init_db();
 
 	/* prepare file descriptors for select() */
 	for (int i = 0; i < 3; i++) { FD_ZERO(&fds[i]); }
 	for (int i = 0; i < n; i++) {
-		DEBUG("select() on sock %i", socks[i]);
 		for (int j = 0; j < 3; j++) {
 			FD_SET(socks[i], &fds[j]);
 		}
@@ -67,47 +144,15 @@ void handler_start(int n)
 	if (ret == -1)
 		perror("select()");
 	else if (ret) {
-		for (int i = 0; i < n; i++) {
-			for (int j = 0; j < 3; j++) {
-				if (FD_ISSET(socks[i], &fds[j])) {
-					conn = accept(socks[i], NULL, NULL); /* TODO: EGAIN */
-					if (conn == -1) {
-						switch (errno) {
-						case EBADF:
-							DEBUG("accept(): BADF");
-							break;
-						case EINVAL:
-							DEBUG("accept(): EINVAL");
-							break;
-						case ENOTSOCK:
-							DEBUG("accept(): ENOTSOCK");
-							break;
-						case EOPNOTSUPP:
-							/* TODO: not SOCK_STREAM */
-							DEBUG("accept(): not SOCK_STREAM");
-							break;
-						default: /* FIXME FIXME FIXME */
-							perror("accept()");
-						}
-					}
-				}
-			}
-		}
-		if (conn > 0) {
-			DEBUG("handler accepted connection");
-			/* swap ready for busy semaphore */
-			sop[0].sem_num = HANDLER_RDY;
-			sop[0].sem_op = 1;
-			sop[0].sem_flg = 0;
-			sop[1].sem_num = HANDLER_BSY;
-			sop[1].sem_op = 1;
-			sop[1].sem_flg = SEM_UNDO; /* release semaphore on exit */
-			semop(semid, sop, 2);
-			close(conn);
-			sleep(2); /* pretend we're doing something */
+		ret = handler_get_socket(n, fds, &sock);
+		if (ret != -1 && sock > 0) {
+			handler_semaphore_release();
+			handle_connection(ret, sock);
+			close(sock);
 		}
 	}
 	free(socks);
+	config_close();
 	DEBUG("handler exiting");
 	_exit(0);
 }

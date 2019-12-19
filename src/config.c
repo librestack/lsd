@@ -455,6 +455,7 @@ int config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi
 	return err;
 }
 
+/* return one value at a time. Call with key == NULL to skip to final state clean up */
 int config_yield(char db, char *key, MDB_val *val)
 {
 	static config_state_t state = CONFIG_INIT;
@@ -466,7 +467,10 @@ int config_yield(char db, char *key, MDB_val *val)
 	static char dbname[2];
 	int err = 0;
 
-	config_db(db, dbname);
+	if (key)
+		config_db(db, dbname);
+	else
+		state = CONFIG_FINAL;
 	switch (state) {
 	case CONFIG_INIT:
 		if ((err = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn)) != 0)

@@ -20,12 +20,13 @@
 
 
 OBJECTS:=$(PROGRAM).o config.o db.o err.o handler.o log.o
+MODULES:=echo.so
 
-LDFLAGS:=-lrt -llmdb
+LDFLAGS:=-ldl -lrt -llmdb
 
 .PHONY:		all clean
 
-all:		$(PROGRAM)
+all:		$(PROGRAM) $(MODULES)
 
 lsd:		$(OBJECTS)
 		$(CC) $(LDFLAGS) -o $(PROGRAM) $(OBJECTS)
@@ -35,6 +36,12 @@ $(PROGRAM).o:	$(PROGRAM).c $(PROGRAM).h
 config.o:	config.c config.h
 
 db.o:		db.c db.h
+
+echo.so:	echo.o
+		$(CC) -shared -fPIC -o $@  $^
+
+echo.o:		echo.c
+		$(CC) -fPIC -c $^
 
 err.o:		err.c err.h
 
