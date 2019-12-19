@@ -58,7 +58,9 @@ int handle_connection(int idx, int sock)
 		p = (proto_t *)val.mv_data;
 		char modname[128];
 		snprintf(modname, 127, "src/%s.so", p->module); /* FIXME: module path */
+		DEBUG("loading module '%s'", modname);
 		void *mod = dlopen(modname, RTLD_LAZY);
+		if (!mod) goto handle_connection_err;
 		int (* init)(int, proto_t*);
 		init = dlsym(mod, "init");
 		if (init) {
@@ -66,12 +68,18 @@ int handle_connection(int idx, int sock)
 			dlclose(mod);
 			goto handle_connection_exit;
 		}
+		else goto handle_connection_err;
 	}
 	config_yield(0, NULL, NULL);
 	FAIL(LSD_ERROR_NOHANDLER);
 handle_connection_exit:
 	config_yield(0, NULL, NULL);
 	return err;
+
+handle_connection_err:
+	config_yield(0, NULL, NULL);
+	ERRMSG(LSD_ERROR_NOHANDLER);
+	FAILMSG(LSD_ERROR_NOHANDLER, "%s", dlerror());
 }
 
 int handler_get_socket(int n, fd_set fds[], int *sock)
