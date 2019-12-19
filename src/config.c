@@ -339,7 +339,7 @@ int config_get(char *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi)
 
 int config_del(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
 {
-	int commit = 0;
+	char commit = 0;
 	int err = 0;
 	MDB_val k,v;
 
@@ -378,7 +378,7 @@ int config_del(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
 
 int config_set(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
 {
-	int commit = 0;
+	char commit = 0;
 	int err = 0;
 	MDB_val k,v;
 
@@ -417,7 +417,7 @@ int config_set(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
 
 int config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi)
 {
-	int commit = 0;
+	char commit = 0;
 	int err = 0;
 	MDB_val k,v;
 
@@ -530,7 +530,7 @@ int config_defaults(MDB_txn *txn, MDB_dbi dbi)
 	return err;
 }
 
-int config_dump(MDB_txn *txn, MDB_dbi dbi[])
+int config_dump(FILE *fd, MDB_txn *txn, MDB_dbi dbi[])
 {
 	int err = 0;
 	MDB_cursor *cur;
@@ -538,61 +538,61 @@ int config_dump(MDB_txn *txn, MDB_dbi dbi[])
 	MDB_val key;
 	MDB_val data;
 
-	for (int i = 0; i < 80; i++) { putchar('#'); }
-	puts("\n## globals");
+	for (int i = 0; i < 80; i++) { fputc('#', fd); }
+	fprintf(fd, "\n## globals\n");
 	err = mdb_cursor_open(txn, dbi[DB_GLOBAL], &cur);
 	if (err) goto config_dump_err;
 	for (op = MDB_FIRST; (err = mdb_cursor_get(cur, &key, &data, op)) == 0; op = MDB_NEXT) {
 		if (config_isint((char *)key.mv_data))
-			printf("%s %i\n", (char *)key.mv_data, *(int *)data.mv_data);
+			fprintf(fd, "%s %i\n", (char *)key.mv_data, *(int *)data.mv_data);
 		else if (config_isbool((char *)key.mv_data))
-			printf("%s %s\n", (char *)key.mv_data, btos(*(int *)data.mv_data));
+			fprintf(fd, "%s %s\n", (char *)key.mv_data, btos(*(int *)data.mv_data));
 		else
-			printf("%s %s\n", (char *)key.mv_data, (char *)data.mv_data);
+			fprintf(fd, "%s %s\n", (char *)key.mv_data, (char *)data.mv_data);
 	}
 	mdb_cursor_close(cur);
 
-	for (int i = 0; i < 80; i++) { putchar('#'); }
-	puts("\n## protocols");
+	for (int i = 0; i < 80; i++) { fputc('#', fd); }
+	fprintf(fd, "\n## protocols\n");
 	err = mdb_cursor_open(txn, dbi[DB_PROTO], &cur);
 	if (err) goto config_dump_err;
 	for (op = MDB_FIRST; (err = mdb_cursor_get(cur, &key, &data, op)) == 0; op = MDB_NEXT) {
 		if (!err) {
 			proto_t *p;
 			p = data.mv_data;
-			printf("proto\t%s\t%u", p->module, p->port);
+			fprintf(fd, "proto\t%s\t%u", p->module, p->port);
 			switch (p->socktype) {
 			case SOCK_STREAM:
-				printf("/tcp");
+				fprintf(fd, "/tcp");
 				break;
 			case SOCK_DGRAM:
-				printf("/udp");
+				fprintf(fd, "/udp");
 				break;
 			case SOCK_RAW:
-				printf("/raw");
+				fprintf(fd, "/raw");
 				break;
 			case SOCK_RDM:
-				printf("/rdm");
+				fprintf(fd, "/rdm");
 				break;
 			case SOCK_DCCP:
-				printf("/dccp");
+				fprintf(fd, "/dccp");
 				break;
 			}
 			if (strcmp(p->addr, DEFAULT_LISTEN_ADDR))
-				printf("\t%s", p->addr);
-			putchar('\n');
+				fprintf(fd, "\t%s", p->addr);
+			fputc('\n', fd);
 		}
 	}
 	mdb_cursor_close(cur);
 
-	for (int i = 0; i < 80; i++) { putchar('#'); }
-	puts("\n## uris");
+	for (int i = 0; i < 80; i++) { fputc('#', fd); }
+	fprintf(fd, "\n## uris\n");
 	err = mdb_cursor_open(txn, dbi[DB_URI], &cur);
 	if (err) goto config_dump_err;
 	for (op = MDB_FIRST; (err = mdb_cursor_get(cur, &key, &data, op)) == 0; op = MDB_NEXT) {
 		if (!err) {
 			uri_t *u = data.mv_data;
-			printf("uri\t%s\n", u->uri);
+			fprintf(fd, "uri\t%s\n", u->uri);
 		}
 	}
 	mdb_cursor_close(cur);
@@ -632,7 +632,7 @@ int (config_cmds(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi[]))
 	if (!strcmp(last, "dump")) {
 		DEBUG("dumping config");
 		(*argc)--;
-		config_dump(txn, dbi);
+		config_dump(stdout, txn, dbi);
 		return LSD_ERROR_CONFIG_ABORT;
 	}
 	else if (!strcmp(last, "reset")) {
