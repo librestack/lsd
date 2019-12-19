@@ -61,14 +61,16 @@ int handle_connection(int idx, int sock)
 		void *mod = dlopen(modname, RTLD_LAZY);
 		int (* init)(int, proto_t*);
 		init = dlsym(mod, "init");
-		err = init(sock, p);
-		dlclose(mod);
-	}
-	else {
-		FAIL(LSD_ERROR_NOHANDLER);
+		if (init) {
+			err = init(sock, p);
+			dlclose(mod);
+			goto handle_connection_exit;
+		}
 	}
 	config_yield(0, NULL, NULL);
-
+	FAIL(LSD_ERROR_NOHANDLER);
+handle_connection_exit:
+	config_yield(0, NULL, NULL);
 	return err;
 }
 

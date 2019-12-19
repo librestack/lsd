@@ -51,6 +51,7 @@ extern unsigned int loglevel;
 #define DIE(fmt, ...) {LOG(LOG_SEVERE, fmt __VA_OPT__(,) __VA_ARGS__);  _exit(EXIT_FAILURE);}
 #define DEBUG(fmt, ...) LOG(LOG_DEBUG, fmt __VA_OPT__(,) __VA_ARGS__)
 #define ERROR(fmt, ...) LOG(LOG_ERROR, fmt __VA_OPT__(,) __VA_ARGS__)
+#define ERRMSG(err) {LOG(LOG_ERROR, err_msg(err));}
 #define FAIL(err) {LOG(LOG_ERROR, err_msg(err));  return err;}
 #define FAILMSG(err, fmt, ...) {LOG(LOG_ERROR, fmt __VA_OPT__(,) __VA_ARGS__);  return err;}
 #define INFO(fmt, ...) LOG(LOG_INFO, fmt __VA_OPT__(,) __VA_ARGS__)

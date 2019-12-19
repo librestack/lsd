@@ -20,7 +20,7 @@
 
 
 OBJECTS:=$(PROGRAM).o config.o db.o err.o handler.o log.o
-MODULES:=echo.so
+MODULES:=echo.so http.so
 
 LDFLAGS:=-ldl -lrt -llmdb
 
@@ -33,15 +33,21 @@ lsd:		$(OBJECTS)
 
 $(PROGRAM).o:	$(PROGRAM).c $(PROGRAM).h
 
-config.o:	config.c config.h
-
-db.o:		db.c db.h
-
 echo.so:	echo.o
 		$(CC) -shared -fPIC -o $@  $^
 
 echo.o:		echo.c
 		$(CC) -fPIC -c $^
+
+http.so:	http.o
+		$(CC) -shared -fPIC -o $@  $^
+
+http.o:		http.c
+		$(CC) -fPIC -c $^
+
+config.o:	config.c config.h
+
+db.o:		db.c db.h
 
 err.o:		err.c err.h
 
