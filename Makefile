@@ -24,7 +24,7 @@ export PROGRAM
 PREFIX = /usr/local
 export PREFIX
 
-CFLAGS += -O -Wall -Werror -Wextra -g
+CFLAGS += -Wall -Werror -Wextra -g
 export CFLAGS
 
 .PHONY: all clean src

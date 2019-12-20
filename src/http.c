@@ -80,12 +80,14 @@ int conn(int sock, proto_t *p)
 	return 0;
 }
 
-int conf()
+int conf(proto_t *p)
 {
+	fprintf(stderr, "%s: conf()\n", p->module);
 	return 0;
 }
 
-int init()
+int init(proto_t *p)
 {
+	fprintf(stderr, "%s: init()\n", p->module);
 	return 0;
 }

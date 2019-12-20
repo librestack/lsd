@@ -188,10 +188,21 @@ int config_load_modules()
 	mod = calloc(size, sizeof(void *));
 	do {
 		p = (proto_t *)val.mv_data;
-		//DEBUG("module: %s", p->module);
 		snprintf(modname, 127, "src/%s.so", p->module); /* FIXME: module path */
 		DEBUG("loading module '%s'", modname);
-		mod[mods_loaded++] = dlopen(modname, RTLD_LAZY);
+		mod[mods_loaded] = dlopen(modname, RTLD_LAZY);
+		/* init() && config() for each module */
+		if (mod[mods_loaded]) {
+			int (* f)(proto_t*);
+			f = dlsym(mod[mods_loaded], "init");
+			if (!dlerror()) err = f(p);
+			f = dlsym(mod[mods_loaded], "conf");
+			if (!dlerror()) err = f(p);
+			mods_loaded++;
+		}
+		else {
+			DEBUG("Failed to load module: %s", p->module);
+		}
 	}
 	while (!(err = mdb_cursor_get(cur, &key, &val, MDB_NEXT)));
 	mdb_cursor_close(cur);
@@ -842,7 +853,7 @@ int config_init(int argc, char **argv)
 	int flags = 0;
 	char *filename = NULL;
 	char db[2];
-	FILE *fd;
+	FILE *fd = NULL;
 	MDB_txn *txn = NULL;
 	MDB_dbi dbi[sizeof(config_db_idx_t)];
 	MDB_val val;
