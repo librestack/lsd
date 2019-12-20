@@ -518,7 +518,7 @@ void config_init_db()
 	mdb_env_set_maxreaders(env, HANDLER_MAX + 1);
 	mdb_env_set_mapsize(env, 10485760); /* TODO: how big a map do we need? */
 	mdb_env_set_maxdbs(env, DB_MAX);
-	mdb_env_open(env, DB_PATH, 0, 0600); /* TODO: set ownership on dropprivs */
+	mdb_env_open(env, DB_PATH, MDB_NOTLS, 0600); /* TODO: set ownership on dropprivs */
 }
 
 int config_defaults(MDB_txn *txn, MDB_dbi dbi)
