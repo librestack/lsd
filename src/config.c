@@ -671,9 +671,12 @@ void config_drop(MDB_txn *txn, MDB_dbi dbi[])
 	int flags = 0;
 	char db[2];
 
-	/* reset/renew txn in case of previous writes */
-	mdb_txn_reset(txn), err = mdb_txn_renew(txn);
-	if (err) DIE("Failed to renew tansaction");
+	/* close & reopen txn in case of previous writes */
+	mdb_txn_abort(txn);
+	if ((err = mdb_txn_begin(env, NULL, 0, &txn))) {
+		ERROR("%s(): %s", __func__, mdb_strerror(err));
+		DIE("Failed to reopen tansaction");
+	}
 	for (int i = 0; i <= DB_URI; i++) {
 		flags = 0;
 		if (i > 0) flags |= MDB_DUPSORT;
