@@ -164,8 +164,10 @@ int main(int argc, char **argv)
 
 	INFO("Starting up...");
 
+	config_load_modules();
+
 	/* listen on sockets */
-	if (!(run = server_listen(&socks))) {
+	if (!(run = server_listen())) {
 		INFO("No protocols configured");
 		goto exit_controller;
 	}
@@ -216,6 +218,7 @@ int main(int argc, char **argv)
 	}
 exit_controller:
 	free(socks);
+	config_unload_modules();
 	config_close();
 	INFO("Controller exiting");
 

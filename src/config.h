@@ -102,6 +102,8 @@ int	config_init(int argc, char **argv);
 void	config_init_db();
 int	config_set(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi);
 int	config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi);
+int	config_load_modules();
+void	config_unload_modules();
 int	config_yield(char db, char *key, MDB_val *val);
 
 #endif /* __LSD_CONFIG */

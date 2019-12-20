@@ -43,7 +43,7 @@ int http_read_request(char *buf, size_t len)
 	if ((strcmp(httpv, "1.0")) && (strcmp(httpv, "1.1")))
 		return HTTP_VERSION_NOT_SUPPORTED;
 	
-	fprintf(stderr, "%s\n", buf);
+	//fprintf(stderr, "%s\n", buf);
 	
 	return HTTP_OK;
 }
@@ -53,7 +53,7 @@ void http_status(int sock, int status)
 	dprintf(sock, "HTTP/1.1 %i - Some Status Here\r\n", status);
 }
 
-int init(int sock, proto_t *p)
+int conn(int sock, proto_t *p)
 {
 	char buf[BUFSIZ];
 	ssize_t len;
@@ -63,9 +63,8 @@ int init(int sock, proto_t *p)
 	//dprintf(sock, "%s\n", p->module);
 
 	while ((len = http_readline(sock, buf))) {
-		//state = 1;
-		//setsockopt(sock, IPPROTO_TCP, TCP_CORK, &state, sizeof(state));
-		//dprintf(sock, "got %li bytes\r\n", len);
+		state = 1;
+		setsockopt(sock, IPPROTO_TCP, TCP_CORK, &state, sizeof(state));
 		err = http_read_request(buf, len);
 		http_status(sock, err);
 		dprintf(sock, "Content-Type: text/plain\r\n");
@@ -74,11 +73,19 @@ int init(int sock, proto_t *p)
 		send(sock, "\r\n", 2, 0);
 		send(sock, "hello\r\n", 7, 0);
 		send(sock, "\r\n", 2, 0);
-		//sprintf(buf, "Some more info here\r\n");
-		//send(sock, buf, strlen(buf), 0);
 		int state = 0;
 		setsockopt(sock, IPPROTO_TCP, TCP_CORK, &state, sizeof(state));
 	}
 
+	return 0;
+}
+
+int conf()
+{
+	return 0;
+}
+
+int init()
+{
 	return 0;
 }

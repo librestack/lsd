@@ -61,10 +61,10 @@ int handle_connection(int idx, int sock)
 		DEBUG("loading module '%s'", modname);
 		void *mod = dlopen(modname, RTLD_LAZY);
 		if (!mod) goto handle_connection_err;
-		int (* init)(int, proto_t*);
-		init = dlsym(mod, "init");
-		if (init) {
-			err = init(sock, p);
+		int (* conn)(int, proto_t*);
+		conn = dlsym(mod, "conn");
+		if (conn) {
+			err = conn(sock, p);
 			dlclose(mod);
 			goto handle_connection_exit;
 		}
@@ -140,6 +140,7 @@ void handler_start(int n)
 	/* handler needs own database env */
 	mdb_env_close(env); env = NULL;
 	config_init_db();
+	config_unload_modules();
 
 	/* prepare file descriptors for select() */
 	for (int i = 0; i < 3; i++) { FD_ZERO(&fds[i]); }

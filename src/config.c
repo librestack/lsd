@@ -28,6 +28,7 @@
 #include "log.h"
 #include <assert.h>
 #include <ctype.h>
+#include <dlfcn.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
@@ -37,6 +38,8 @@
 #include <sys/types.h>
 
 int debug = 0;
+int mods_loaded = 0;
+void **mod = NULL;	/* dlopen handles for modules */
 
 char * config_db(char db, char name[2])
 {
@@ -142,6 +145,59 @@ int config_int_set(char *klong, int *key, char *val)
 	*key = i;
 
 	return 1;
+}
+
+void config_unload_modules()
+{
+	if (mod) {
+		while (mods_loaded--) {
+			dlclose(mod[mods_loaded]);
+		}
+		free(mod);
+	}
+}
+
+int config_load_modules()
+{
+	proto_t *p;
+	MDB_txn *txn;
+	MDB_cursor *cur;
+	MDB_dbi dbi;
+	MDB_val key;
+	MDB_val val;
+	size_t size;
+	char modname[128];
+	char dbname[2];
+	int err = 0;
+
+	config_db(DB_PROTO, dbname);
+	if ((err = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn)) != 0)
+		DIE("%s()[%i]: %s", __func__, __LINE__, mdb_strerror(err));
+	if((err = mdb_dbi_open(txn, dbname, MDB_DUPSORT, &dbi)) != 0) {
+		ERROR("problem opening database '%s'", dbname);
+		DIE("%s()[%i]: %s", __func__,  __LINE__,mdb_strerror(err));
+	}
+	if ((err = mdb_cursor_open(txn, dbi, &cur)) != 0)
+		DIE("%s()[%i]: %s", __func__,  __LINE__,mdb_strerror(err));
+
+	key.mv_data = "proto";
+	key.mv_size = strlen(key.mv_data);
+	err = mdb_cursor_get(cur, &key, &val, MDB_FIRST);
+	err = mdb_cursor_count(cur, &size);
+	DEBUG("loading %u modules", size);
+	mod = calloc(size, sizeof(void *));
+	do {
+		p = (proto_t *)val.mv_data;
+		//DEBUG("module: %s", p->module);
+		snprintf(modname, 127, "src/%s.so", p->module); /* FIXME: module path */
+		DEBUG("loading module '%s'", modname);
+		mod[mods_loaded++] = dlopen(modname, RTLD_LAZY);
+	}
+	while (!(err = mdb_cursor_get(cur, &key, &val, MDB_NEXT)));
+	mdb_cursor_close(cur);
+	mdb_txn_abort(txn);
+
+	return err;
 }
 
 int config_process_proto(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
@@ -458,6 +514,8 @@ int config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi
 /* return one value at a time. Call with key == NULL to skip to final state clean up */
 int config_yield(char db, char *key, MDB_val *val)
 {
+	/* FIXME: for this function to be reentrant, we need to store all this
+	 * state and pass it back to the caller */
 	static config_state_t state = CONFIG_INIT;
 	static MDB_txn *txn;
 	static MDB_dbi dbi;
@@ -613,9 +671,9 @@ void config_drop(MDB_txn *txn, MDB_dbi dbi[])
 	int flags = 0;
 	char db[2];
 
-	/* abort txn in case of previous writes */
-	mdb_txn_abort(txn);
-	mdb_txn_begin(env, NULL, 0, &txn);
+	/* reset/renew txn in case of previous writes */
+	mdb_txn_reset(txn), err = mdb_txn_renew(txn);
+	if (err) DIE("Failed to renew tansaction");
 	for (int i = 0; i <= DB_URI; i++) {
 		flags = 0;
 		if (i > 0) flags |= MDB_DUPSORT;
