@@ -195,9 +195,9 @@ int config_load_modules()
 		if (mod[mods_loaded]) {
 			int (* f)(proto_t*);
 			f = dlsym(mod[mods_loaded], "init");
-			if (!dlerror()) err = f(p);
+			if (!dlerror()) err = f(p); /* FIXME: check return from module */
 			f = dlsym(mod[mods_loaded], "conf");
-			if (!dlerror()) err = f(p);
+			if (!dlerror()) err = f(p); /* FIXME: check return from module */
 			mods_loaded++;
 		}
 		else {

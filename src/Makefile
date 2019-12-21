@@ -42,7 +42,7 @@ echo.o:		echo.c
 http.so:	http.o
 		$(CC) -shared -fPIC -o $@  $^
 
-http.o:		http.c
+http.o:		http.c http.h
 		$(CC) -fPIC -c $^
 
 config.o:	config.c config.h

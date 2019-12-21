@@ -1,15 +1,33 @@
-#include "config.h"
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * http.c
+ *
+ * this file is part of LIBRESTACK
+ *
+ * Copyright (c) 2012-2019 Brett Sheffield <bacs@librecast.net>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see the file COPYING in the distribution).
+ * If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "http.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/tcp.h>
 #include <unistd.h>
-
-/* FIXME: move to header file */
-#define HTTP_OK				200
-#define HTTP_BAD_REQUEST		400
-#define HTTP_VERSION_NOT_SUPPORTED	505
 
 ssize_t http_readline(int sock, char *buf)
 {
@@ -33,6 +51,7 @@ ssize_t http_readline(int sock, char *buf)
 
 int http_read_request(char *buf, size_t len)
 {
+	/* FIXME - lets not copy this stuff about */
 	char method[len];
 	char resource[len];
 	char httpv[len];
@@ -53,6 +72,7 @@ void http_status(int sock, int status)
 	dprintf(sock, "HTTP/1.1 %i - Some Status Here\r\n", status);
 }
 
+/* Handle new connection */
 int conn(int sock, proto_t *p)
 {
 	char buf[BUFSIZ];
@@ -61,6 +81,8 @@ int conn(int sock, proto_t *p)
 	int state = 1;
 
 	//dprintf(sock, "%s\n", p->module);
+	
+	/* FIXME: can we read directly into iovec buffers with readv? */
 
 	while ((len = http_readline(sock, buf))) {
 		state = 1;
@@ -80,12 +102,14 @@ int conn(int sock, proto_t *p)
 	return 0;
 }
 
+/* load/reload config */
 int conf(proto_t *p)
 {
 	fprintf(stderr, "%s: conf()\n", p->module);
 	return 0;
 }
 
+/* initialize */
 int init(proto_t *p)
 {
 	fprintf(stderr, "%s: init()\n", p->module);

@@ -64,7 +64,9 @@ int handle_connection(int idx, int sock)
 		int (* conn)(int, proto_t*);
 		conn = dlsym(mod, "conn");
 		if (conn) {
+		/* TODO: handle return codes - provide different facilities to different plugins */
 			err = conn(sock, p);
+			/* TODO if (err == NEW_LINE_PLEASE) etc. */
 			dlclose(mod);
 			goto handle_connection_exit;
 		}
