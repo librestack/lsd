@@ -40,6 +40,7 @@
 int debug = 0;
 int mods_loaded = 0;
 void **mod = NULL;	/* dlopen handles for modules */
+int run = 0;
 
 char * config_db(char db, char name[2])
 {
@@ -193,11 +194,12 @@ int config_load_modules()
 		mod[mods_loaded] = dlopen(modname, RTLD_LAZY);
 		/* init() && config() for each module */
 		if (mod[mods_loaded]) {
-			int (* f)(proto_t*);
-			f = dlsym(mod[mods_loaded], "init");
-			if (!dlerror()) err = f(p); /* FIXME: check return from module */
-			f = dlsym(mod[mods_loaded], "conf");
-			if (!dlerror()) err = f(p); /* FIXME: check return from module */
+			int (* init)(int, proto_t*);
+			int (* conf)(proto_t*);
+			init = dlsym(mod[mods_loaded], "init");
+			if (!dlerror()) err = init(loglevel, p); /* FIXME: check return from module */
+			conf = dlsym(mod[mods_loaded], "conf");
+			if (!dlerror()) err = conf(p); /* FIXME: check return from module */
 			mods_loaded++;
 		}
 		else {

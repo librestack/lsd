@@ -22,6 +22,11 @@
  */
 
 #include "config.h"
+#include "iov.h"
+
+#define HTTP_METHOD_MAX 8	/* maximum length of HTTP method */
+#define HTTP_URI_MAX 4096	/* maximum length of HTTP uri */
+#define HTTP_VERSION_MAX 9	/* maximum length of HTTP uri */
 
 typedef enum {
 	HTTP_SWITCHING_PROTOCOLS        = 101,
@@ -40,6 +45,13 @@ typedef enum {
 	HTTP_VERSION_NOT_SUPPORTED      = 505
 } http_status_code_t;
 
+typedef enum {
+	HTTP_ENCODING_NONE		= 0,
+	HTTP_ENCODING_GZIP		= 1,
+	HTTP_ENCODING_DEFLATE		= 2,
+} http_encoding_t;
+
+#if 0
 typedef struct http_request_s http_request_t;
 struct http_request_s {
 	char *httpv;                    /* HTTP version */
@@ -48,12 +60,30 @@ struct http_request_s {
 	size_t len;                     /* bytes recv()'d */
 	char close;                     /* Connection: close */
 };
+#endif
+
+typedef struct http_request_s http_request_t;
+struct http_request_s {
+	struct iovec httpv;             /* HTTP version */
+	struct iovec method;            /* HTTP request method (GET, POST etc.) */
+	struct iovec uri;               /* resource (url) requested */
+	struct iovec host;              /* Host */
+	struct iovec encoding;		/* Accept-Encoding */
+	struct iovec lang;		/* Accept-Language */
+	struct iovec cache;		/* Cache-Control */
+	size_t len;                     /* bytes recv()'d */
+	char upsec;			/* Upgrade-Insecure-Requests */
+	char close;                     /* Connection: close */
+};
 
 typedef struct http_response_s http_response_t;
 struct http_response_s {
+	iovstack_t iovs;
 	http_status_code_t code;        /* HTTP response code */
-	size_t len;                     /* length of response body */
-	char close;                     /* Connection: close */
+	http_encoding_t encoding;	/* gzip, deflate etc. */
+//	size_t len;                     /* length of response body */
+//	char close;                     /* Connection: close */
+//	char *body;
 };
 
 /* handle new connection */
@@ -63,4 +93,4 @@ int conn(int sock, proto_t *p);
 int conf(proto_t *p);
 
 /* initialize */
-int init(proto_t *p);
+int init(int loggin, proto_t *p);

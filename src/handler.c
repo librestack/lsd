@@ -43,6 +43,19 @@
 #include <netdb.h>
 #include <unistd.h>
 
+void *module = NULL;
+char yield = 0; /* need to do cleanup call to config_yield() */
+
+void handler_close()
+{
+	if (yield) config_yield(0, NULL, NULL);
+	if (module) dlclose(module);
+	free(socks);
+	config_close();
+	DEBUG("handler exiting");
+	_exit(0);
+}
+
 int handle_connection(int idx, int sock)
 {
 	MDB_val val = { 0, NULL };
@@ -50,6 +63,7 @@ int handle_connection(int idx, int sock)
 	int err = 0;
 
 	DEBUG("connection received on socket %i", idx);
+	yield = 1;
 	for (int i = 0; config_yield(DB_PROTO, "proto", &val) == CONFIG_NEXT; i++) {
 		if (idx == i) break;
 	}
@@ -59,27 +73,28 @@ int handle_connection(int idx, int sock)
 		char modname[128];
 		snprintf(modname, 127, "src/%s.so", p->module); /* FIXME: module path */
 		DEBUG("loading module '%s'", modname);
-		void *mod = dlopen(modname, RTLD_LAZY);
-		if (!mod) goto handle_connection_err;
+		module = dlopen(modname, RTLD_LAZY);
+		if (!module) goto handle_connection_err;
 		int (* conn)(int, proto_t*);
-		conn = dlsym(mod, "conn");
+		conn = dlsym(module, "conn");
 		if (conn) {
 		/* TODO: handle return codes - provide different facilities to different plugins */
 			err = conn(sock, p);
 			/* TODO if (err == NEW_LINE_PLEASE) etc. */
-			dlclose(mod);
+			dlclose(module); module = NULL;
 			goto handle_connection_exit;
 		}
 		else goto handle_connection_err;
 	}
-	config_yield(0, NULL, NULL);
+	/* FIXME: this is a mess */
+	config_yield(0, NULL, NULL), yield = 0;
 	FAIL(LSD_ERROR_NOHANDLER);
 handle_connection_exit:
-	config_yield(0, NULL, NULL);
+	config_yield(0, NULL, NULL), yield = 0;
 	return err;
 
 handle_connection_err:
-	config_yield(0, NULL, NULL);
+	config_yield(0, NULL, NULL), yield = 0;
 	ERRMSG(LSD_ERROR_NOHANDLER);
 	FAILMSG(LSD_ERROR_NOHANDLER, "%s", dlerror());
 }
@@ -164,8 +179,5 @@ void handler_start(int n)
 			close(sock);
 		}
 	}
-	free(socks);
-	config_close();
-	DEBUG("handler exiting");
-	_exit(0);
+	handler_close();
 }

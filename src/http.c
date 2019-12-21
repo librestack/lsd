@@ -22,96 +22,204 @@
  */
 
 #include "http.h"
+#include "iov.h"
+#include "log.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/tcp.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
-ssize_t http_readline(int sock, char *buf)
+char buf[BUFSIZ];
+struct iovec *msg_iov;
+
+int setcork(int sock, int state)
 {
-	ssize_t len = recv(sock, buf, BUFSIZ - 1, 0);
-
-	/* scan buffer for newline and remove */
-	for (int i = len; i > 0; i--) {
-		if (buf[i] == '\n') {
-			buf[i] = '\0';
-			//return --i;
-			len - i;
-		}
-		if (buf[i] == '\n') {
-			buf[i] = '\0';
-			len - i;
-		}
-	}
-
-	return len;
+	return setsockopt(sock, IPPROTO_TCP, TCP_CORK, &state, sizeof(state));
 }
 
-int http_read_request(char *buf, size_t len)
+size_t http_status(char *status, http_status_code_t code)
 {
-	/* FIXME - lets not copy this stuff about */
-	char method[len];
-	char resource[len];
-	char httpv[len];
+	/* TODO: actually look up codes */
+	return sprintf(status, "HTTP/1.1 %i - Some Status Here\r\n", code);
+}
 
-	if (!buf) return HTTP_BAD_REQUEST;
-	if (sscanf(buf, "%s %s HTTP/%s", method, resource, httpv) != 3)
-		return HTTP_BAD_REQUEST;
-	if ((strcmp(httpv, "1.0")) && (strcmp(httpv, "1.1")))
-		return HTTP_VERSION_NOT_SUPPORTED;
-	
-	//fprintf(stderr, "%s\n", buf);
-	
+/* advance ptr to end of word, return length */
+size_t wordend(char **ptr, size_t ptrmax, size_t maxlen)
+{
+	int i;
+	maxlen = (ptrmax < maxlen) ? ptrmax : maxlen; /* lowest limit */
+	for (i = 0; i < maxlen && !isspace((*ptr)[i]); i++);
+	return i;
+}
+
+/* advance ptr to next word, return offset */
+size_t skipspace(char **ptr, size_t i, size_t maxlen)
+{
+	*ptr += i;
+	for (i = 0; i < maxlen && isblank((*ptr)[i]); i++);
+	*ptr += i;
+	return i;
+}
+
+/*
+ * first pass processing request headers
+ * 1. ignore everything we can
+ * 2. process anything of immediate importance
+ * 3. defer processing of everything else
+ * return 0 for success, or http_status_code_t for error
+ */
+int http_header_process(http_request_t *req, http_response_t *res,
+			struct iovec *k, struct iovec *v)
+{
+	if (!iovcmp(k, "Host")) {
+		iovset(&req->host, v->iov_base, v->iov_len);
+	}
+	else if (!iovcmp(k, "Accept-Encoding")) {
+		iovset(&req->encoding, v->iov_base, v->iov_len);
+	}
+	else if (!iovcmp(k, "Accept-Language")) {
+		iovset(&req->lang, v->iov_base, v->iov_len);
+	}
+	else if (!iovcmp(k, "Connection")) {
+		req->close = (iovcmp(v, "keep-alive")) ? 0 : 1;
+	}
+	else if (!iovcmp(k, "Upgrade-Insecure-Requests")) {
+		req->upsec = (iovcmp(v, "1")) ? 0 : 1;
+	}
+	else if (!iovcmp(k, "Cache-Control")) {
+		iovset(&req->cache, v->iov_base, v->iov_len);
+	}
+	return 0;
+}
+
+static inline http_status_code_t
+http_headers_read(char *buf, http_request_t *req, http_response_t *res)
+{
+	char *ptr, *crlf;
+	struct iovec header, val;
+	size_t i;
+	int err;
+
+	ptr = buf;
+	while (ptr < buf + req->len) {
+
+		i = wordend(&ptr, BUFSIZ, req->len);
+		if (i == 0 || i == req->len) break;
+
+		iovset(&header, ptr, i - 1);
+
+		ptr += i + 1;
+		crlf = strstr(ptr, "\r\n");
+
+		iovset(&val, ptr, crlf - ptr);
+
+		writev(1, &header, 1);
+		write(1, "\n", 1);
+		writev(1, &val, 1);
+		write(1, "\n", 1);
+
+		if ((err = http_header_process(req, res, &header, &val)))
+			return err;
+
+		ptr = crlf + 2;
+	}
 	return HTTP_OK;
 }
 
-void http_status(int sock, int status)
+static inline http_status_code_t
+http_request_read(int sock, http_request_t *req, http_response_t *res)
 {
-	dprintf(sock, "HTTP/1.1 %i - Some Status Here\r\n", status);
+	size_t i;
+	char *ptr;
+
+	req->len = recv(sock, buf, BUFSIZ, 0);
+	ptr = buf;
+
+	i = wordend(&ptr, HTTP_METHOD_MAX, req->len);	/* HTTP method */
+	if (i == 0 || i == req->len)
+		return HTTP_BAD_REQUEST;
+	iovset(&req->method, buf, i);
+
+	if (skipspace(&ptr, i, req->len) == req->len)
+		return HTTP_BAD_REQUEST;
+
+	i = wordend(&ptr, HTTP_URI_MAX, req->len);	/* URI */
+	if (i == 0 || i == req->len)
+		return HTTP_BAD_REQUEST;
+	iovset(&req->uri, ptr, i);
+
+	if (skipspace(&ptr, i, req->len) == req->len)
+		return HTTP_BAD_REQUEST;
+
+	i = wordend(&ptr, HTTP_VERSION_MAX, req->len);	/* HTTP version */
+	if (i == 0 || i == req->len)
+		return HTTP_BAD_REQUEST;
+	iovset(&req->httpv, ptr, i);
+
+	ptr += i;
+	if (memcmp(ptr, "\r\n", 2))			/* CRLF */
+		return HTTP_BAD_REQUEST;
+	ptr += 2;
+
+	return http_headers_read(ptr, req, res);
+}
+
+int http_response_send(int sock, http_request_t *req, http_response_t *res)
+{
+	setcork(sock, 1);
+	writev(sock, res->iovs.iov, res->iovs.idx);
+	setcork(sock, 0);
+	return 0;
 }
 
 /* Handle new connection */
 int conn(int sock, proto_t *p)
 {
-	char buf[BUFSIZ];
-	ssize_t len;
+	loglevel = 127; /* FIXME */
+	http_response_t res = {};
+	http_request_t req = {};
+	char status[128];
+	char clen[128];
+	char ctyp[128];
+	size_t len;
 	int err = 0;
-	int state = 1;
 
-	//dprintf(sock, "%s\n", p->module);
-	
-	/* FIXME: can we read directly into iovec buffers with readv? */
+	err = http_request_read(sock, &req, &res);
 
-	while ((len = http_readline(sock, buf))) {
-		state = 1;
-		setsockopt(sock, IPPROTO_TCP, TCP_CORK, &state, sizeof(state));
-		err = http_read_request(buf, len);
-		http_status(sock, err);
-		dprintf(sock, "Content-Type: text/plain\r\n");
-		dprintf(sock, "Content-Length: 7\r\n");
-		//dprintf(sock, "Connection: close\r\n");
-		send(sock, "\r\n", 2, 0);
-		send(sock, "hello\r\n", 7, 0);
-		send(sock, "\r\n", 2, 0);
-		int state = 0;
-		setsockopt(sock, IPPROTO_TCP, TCP_CORK, &state, sizeof(state));
-	}
+	fprintf(stderr, "My hostly goodness is...");
+	writev(1, &req.host, 1);
+	write(1, "\n", 1);
 
-	return 0;
+	res.iovs.nmemb = 5;
+
+	iov_push(&res.iovs, status, http_status(status, err));
+	iov_push(&res.iovs, clen, sprintf(clen, "Content-Length: %lu\r\n", req.len));
+	iov_push(&res.iovs, ctyp, sprintf(ctyp, "Content-type: text-plain\r\n"));
+	iov_push(&res.iovs, "\r\n", 2);
+	iov_push(&res.iovs, buf, req.len);
+
+	err = http_response_send(sock, &req, &res);
+	free(res.iovs.iov);
+
+	return err;
 }
 
 /* load/reload config */
 int conf(proto_t *p)
 {
-	fprintf(stderr, "%s: conf()\n", p->module);
+	/* TODO */
+	DEBUG("%s: conf()", p->module);
 	return 0;
 }
 
 /* initialize */
-int init(proto_t *p)
+int init(int logging, proto_t *p)
 {
-	fprintf(stderr, "%s: init()\n", p->module);
+	loglevel = logging;
+	DEBUG("%s: init(), loglevel=%i", p->module, loglevel);
 	return 0;
 }

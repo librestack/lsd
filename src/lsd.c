@@ -28,6 +28,7 @@
 #include "lsd.h"
 #include <arpa/inet.h>
 #include <assert.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <error.h>
 #include <fcntl.h>
@@ -45,7 +46,6 @@
 
 int handlers = 0;
 int pid;
-int run = 0;
 int semid;
 int *socks = NULL;
 
@@ -144,9 +144,7 @@ void sigint_handler(int __attribute__((unused)) signo)
 	}
 	else {
 		DEBUG("INT received by handler");
-		free(socks);
-		config_close();
-		_exit(EXIT_SUCCESS);
+		handler_close();
 	}
 }
 

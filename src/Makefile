@@ -19,7 +19,8 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 
-OBJECTS:=$(PROGRAM).o config.o db.o err.o handler.o log.o
+COMMON_OBJECTS:=config.o db.o err.o iov.o log.o
+OBJECTS:=$(PROGRAM).o handler.o $(COMMON_OBJECTS)
 MODULES:=echo.so http.so
 
 LDFLAGS:=-ldl -lrt -llmdb
@@ -39,21 +40,28 @@ echo.so:	echo.o
 echo.o:		echo.c
 		$(CC) -fPIC -c $^
 
-http.so:	http.o
+http.so:	http.o $(COMMON_OBJECTS)
 		$(CC) -shared -fPIC -o $@  $^
 
 http.o:		http.c http.h
 		$(CC) -fPIC -c http.c
 
 config.o:	config.c config.h
+		$(CC) -fPIC -c config.c
 
 db.o:		db.c db.h
+		$(CC) -fPIC -c db.c
 
 err.o:		err.c err.h
+		$(CC) -fPIC -c err.c
 
 handler.o:	handler.c handler.h
 
 log.o:		log.c log.h
+		$(CC) -fPIC -c log.c
+
+iov.o:		iov.c iov.h
+		$(CC) -fPIC -c iov.c
 
 clean:
 		rm -f *.o $(PROGRAM)

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  *
- * handler.h
+ * iov.h
  *
  * this file is part of LIBRESTACK
  *
@@ -21,10 +21,21 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __HANDLER_H
-#define __HANDLER_H 1
+#ifndef __IOV_H
+#define __IOV_H 1
 
-void handler_close();
-void handler_start(int n);
+#include <sys/uio.h>
 
-#endif /* __HANDLER_H */
+typedef struct iovstack_s iovstack_t;
+struct iovstack_s {
+	struct iovec *iov;		/* iovec array */
+	size_t idx;			/* current element in stack */
+	size_t len;			/* size of allocated stack */
+	size_t nmemb;			/* min amount to extend stack by each time */
+};
+
+int iovcmp(struct iovec *k, void *ptr);
+struct iovec *iovset(struct iovec *iov, void *base, size_t len);
+int iov_push(iovstack_t *iovs, void *base, size_t len);
+
+#endif /* __IOV_H */
