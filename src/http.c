@@ -182,14 +182,13 @@ int conn(int sock, proto_t *p)
 
 	err = http_request_read(sock, &req, &res);
 
-	DEBUG("Host requested: %.*s\n", (int)req.host.iov_len,
-					(char*)req.host.iov_base);
+	DEBUG("Host requested: %.*s", (int)req.host.iov_len,
+				   (char *)req.host.iov_base);
 
 	DEBUG("Upsec: %i", req.upsec);
 	DEBUG("Close: %i", req.close);
 
-	res.iovs.nmemb = 5;
-
+	res.iovs.nmemb = 5; /* number of iov structs to allocate at once */
 	iov_push(&res.iovs, status, http_status(status, err));
 	iov_push(&res.iovs, clen, sprintf(clen, "Content-Length: %zu\r\n", req.len));
 	iov_push(&res.iovs, ctyp, sprintf(ctyp, "Content-type: text-plain\r\n"));

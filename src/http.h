@@ -51,17 +51,6 @@ typedef enum {
 	HTTP_ENCODING_DEFLATE		= 2,
 } http_encoding_t;
 
-#if 0
-typedef struct http_request_s http_request_t;
-struct http_request_s {
-	char *httpv;                    /* HTTP version */
-	char *method;                   /* HTTP request method (GET, POST etc.) */
-	char *res;                      /* resource (url) requested */
-	size_t len;                     /* bytes recv()'d */
-	char close;                     /* Connection: close */
-};
-#endif
-
 typedef struct http_request_s http_request_t;
 struct http_request_s {
 	struct iovec httpv;             /* HTTP version */
@@ -82,9 +71,7 @@ struct http_response_s {
 	iovstack_t iovs;
 	http_status_code_t code;        /* HTTP response code */
 	http_encoding_t encoding;	/* gzip, deflate etc. */
-//	size_t len;                     /* length of response body */
-//	char close;                     /* Connection: close */
-//	char *body;
+	struct iovec body;		/* Response body */
 };
 
 /* handle new connection */
