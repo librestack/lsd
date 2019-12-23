@@ -122,7 +122,7 @@ http_headers_read(char *buf, http_request_t *req, http_response_t *res)
 	return HTTP_OK;
 }
 
-static inline http_status_code_t
+http_status_code_t
 http_request_read(int sock, http_request_t *req, http_response_t *res)
 {
 	size_t i;
