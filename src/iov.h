@@ -35,6 +35,7 @@ struct iovstack_s {
 };
 
 int iovcmp(struct iovec *k, void *ptr);
+struct iovec *iovcpy(struct iovec *dst, struct iovec *src);
 struct iovec *iovset(struct iovec *iov, void *base, size_t len);
 int iov_push(iovstack_t *iovs, void *base, size_t len);
 

@@ -39,6 +39,11 @@ struct iovec *iovset(struct iovec *iov, void *base, size_t len)
 	return iov;
 }
 
+struct iovec *iovcpy(struct iovec *dst, struct iovec *src)
+{
+	return iovset(dst, src->iov_base, src->iov_len);
+}
+
 int iov_push(iovstack_t *iovs, void *base, size_t len)
 {
 	int err = 0;

@@ -76,16 +76,16 @@ int http_header_process(http_request_t *req, http_response_t *res,
 			struct iovec *k, struct iovec *v)
 {
 	if (!iovcmp(k, "Host")) {
-		iovset(&req->host, v->iov_base, v->iov_len);
+		iovcpy(&req->host, v);
 	}
 	else if (!iovcmp(k, "Accept")) {
-		iovset(&req->accept, v->iov_base, v->iov_len);
+		iovcpy(&req->accept, v);
 	}
 	else if (!iovcmp(k, "Accept-Encoding")) {
-		iovset(&req->encoding, v->iov_base, v->iov_len);
+		iovcpy(&req->encoding, v);
 	}
 	else if (!iovcmp(k, "Accept-Language")) {
-		iovset(&req->lang, v->iov_base, v->iov_len);
+		iovcpy(&req->lang, v);
 	}
 	else if (!iovcmp(k, "Connection")) {
 		req->close = !iovcmp(v, "close");
@@ -94,7 +94,7 @@ int http_header_process(http_request_t *req, http_response_t *res,
 		req->upsec = !iovcmp(v, "1");
 	}
 	else if (!iovcmp(k, "Cache-Control")) {
-		iovset(&req->cache, v->iov_base, v->iov_len);
+		iovcpy(&req->cache, v);
 	}
 	return 0;
 }
@@ -182,9 +182,8 @@ int conn(int sock, proto_t *p)
 
 	err = http_request_read(sock, &req, &res);
 
-	fprintf(stderr, "Host requested:");
-	writev(1, &req.host, 1);
-	write(1, "\n", 1);
+	DEBUG("Host requested: %.*s\n", (int)req.host.iov_len,
+					(char*)req.host.iov_base);
 
 	DEBUG("Upsec: %i", req.upsec);
 	DEBUG("Close: %i", req.close);
@@ -192,7 +191,7 @@ int conn(int sock, proto_t *p)
 	res.iovs.nmemb = 5;
 
 	iov_push(&res.iovs, status, http_status(status, err));
-	iov_push(&res.iovs, clen, sprintf(clen, "Content-Length: %lu\r\n", req.len));
+	iov_push(&res.iovs, clen, sprintf(clen, "Content-Length: %zu\r\n", req.len));
 	iov_push(&res.iovs, ctyp, sprintf(ctyp, "Content-type: text-plain\r\n"));
 	iov_push(&res.iovs, "\r\n", 2);
 	iov_push(&res.iovs, buf, req.len);
