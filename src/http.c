@@ -168,6 +168,22 @@ int http_response_send(int sock, http_request_t *req, http_response_t *res)
 	return 0;
 }
 
+http_status_code_t
+http_request_handle(http_request_t *req, http_response_t *res)
+{
+	DEBUG("%s()", __func__);
+	MDB_val val = { 0, NULL };
+	uri_t *u;
+
+	config_init_db();
+	for (int i = 0; config_yield(DB_URI, "uri", &val) == CONFIG_NEXT; i++) {
+		DEBUG("checking uri");
+	}
+	config_yield_free();
+
+	return HTTP_OK;
+}
+
 /* Handle new connection */
 int conn(int sock, proto_t *p)
 {
@@ -188,6 +204,10 @@ int conn(int sock, proto_t *p)
 	DEBUG("Upsec: %i", req.upsec);
 	DEBUG("Close: %i", req.close);
 
+	if (err == HTTP_OK)
+		err = http_request_handle(&req, &res);
+
+	/* prepare response */
 	res.iovs.nmemb = 5; /* number of iov structs to allocate at once */
 	iov_push(&res.iovs, status, http_status(status, err));
 	iov_push(&res.iovs, clen, sprintf(clen, "Content-Length: %zu\r\n", req.len));
@@ -197,6 +217,7 @@ int conn(int sock, proto_t *p)
 
 	err = http_response_send(sock, &req, &res);
 	free(res.iovs.iov);
+	mdb_env_close(env); env = NULL;
 
 	return err;
 }

@@ -92,6 +92,7 @@ struct uri_s {
 	config_set_int(db, k, deflt, txn, dbi);
 
 extern int debug;
+extern char yield;
 
 void	config_close();
 char *	config_db(char db, char name[2]);
@@ -105,5 +106,6 @@ int	config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi
 int	config_load_modules();
 void	config_unload_modules();
 int	config_yield(char db, char *key, MDB_val *val);
+void	config_yield_free();
 
 #endif /* __LSD_CONFIG */

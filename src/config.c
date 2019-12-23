@@ -41,6 +41,7 @@ int debug = 0;
 int mods_loaded = 0;
 void **mod = NULL;	/* dlopen handles for modules */
 int run = 0;
+char yield = 0; /* need to do cleanup call to config_yield() */
 
 char * config_db(char db, char name[2])
 {
@@ -544,6 +545,7 @@ int config_yield(char db, char *key, MDB_val *val)
 		state = CONFIG_FINAL;
 	switch (state) {
 	case CONFIG_INIT:
+		yield = 1;
 		if ((err = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn)) != 0)
 			DIE("%s()[%i]: %s", __func__, __LINE__, mdb_strerror(err));
 		if((err = mdb_dbi_open(txn, dbname, MDB_DUPSORT, &dbi)) != 0) {
@@ -580,6 +582,12 @@ int config_yield(char db, char *key, MDB_val *val)
 	}
 
 	return (err == 0) ? state : 0;
+}
+
+void config_yield_free()
+{
+	config_yield(0, NULL, NULL);
+	yield = 0;
 }
 
 void config_init_db()

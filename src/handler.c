@@ -44,11 +44,10 @@
 #include <unistd.h>
 
 void *module = NULL;
-char yield = 0; /* need to do cleanup call to config_yield() */
 
 void handler_close()
 {
-	if (yield) config_yield(0, NULL, NULL);
+	if (yield) config_yield_free();
 	if (module) dlclose(module);
 	free(socks);
 	config_close();
@@ -63,7 +62,6 @@ int handle_connection(int idx, int sock)
 	int err = 0;
 
 	DEBUG("connection received on socket %i", idx);
-	yield = 1;
 	for (int i = 0; config_yield(DB_PROTO, "proto", &val) == CONFIG_NEXT; i++) {
 		if (idx == i) break;
 	}
@@ -87,14 +85,14 @@ int handle_connection(int idx, int sock)
 		else goto handle_connection_err;
 	}
 	/* FIXME: this is a mess */
-	config_yield(0, NULL, NULL), yield = 0;
+	config_yield_free();
 	FAIL(LSD_ERROR_NOHANDLER);
 handle_connection_exit:
-	config_yield(0, NULL, NULL), yield = 0;
+	config_yield_free();
 	return err;
 
 handle_connection_err:
-	config_yield(0, NULL, NULL), yield = 0;
+	config_yield_free();
 	ERRMSG(LSD_ERROR_NOHANDLER);
 	FAILMSG(LSD_ERROR_NOHANDLER, "%s", dlerror());
 }

@@ -63,7 +63,7 @@ int server_listen()
 
 	/* allocate an array for sockets */
 	while (config_yield(DB_PROTO, "proto", &val) == CONFIG_NEXT) { n++; }
-	config_yield(0, NULL, NULL);
+	config_yield_free();
 	DEBUG("n = %i", n);
 
 	if (!n) return 0;
@@ -101,7 +101,7 @@ int server_listen()
 			n++;
 		}
 	}
-	config_yield(0, NULL, NULL);
+	config_yield_free();
 
 	return n;
 }
