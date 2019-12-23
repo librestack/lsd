@@ -68,6 +68,7 @@ struct http_request_s {
 	struct iovec method;            /* HTTP request method (GET, POST etc.) */
 	struct iovec uri;               /* resource (url) requested */
 	struct iovec host;              /* Host */
+	struct iovec accept;		/* Accept */
 	struct iovec encoding;		/* Accept-Encoding */
 	struct iovec lang;		/* Accept-Language */
 	struct iovec cache;		/* Cache-Control */

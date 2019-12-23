@@ -78,6 +78,9 @@ int http_header_process(http_request_t *req, http_response_t *res,
 	if (!iovcmp(k, "Host")) {
 		iovset(&req->host, v->iov_base, v->iov_len);
 	}
+	else if (!iovcmp(k, "Accept")) {
+		iovset(&req->accept, v->iov_base, v->iov_len);
+	}
 	else if (!iovcmp(k, "Accept-Encoding")) {
 		iovset(&req->encoding, v->iov_base, v->iov_len);
 	}
@@ -85,10 +88,10 @@ int http_header_process(http_request_t *req, http_response_t *res,
 		iovset(&req->lang, v->iov_base, v->iov_len);
 	}
 	else if (!iovcmp(k, "Connection")) {
-		req->close = (iovcmp(v, "keep-alive")) ? 0 : 1;
+		req->close = !iovcmp(v, "close");
 	}
 	else if (!iovcmp(k, "Upgrade-Insecure-Requests")) {
-		req->upsec = (iovcmp(v, "1")) ? 0 : 1;
+		req->upsec = !iovcmp(v, "1");
 	}
 	else if (!iovcmp(k, "Cache-Control")) {
 		iovset(&req->cache, v->iov_base, v->iov_len);
@@ -106,25 +109,14 @@ http_headers_read(char *buf, http_request_t *req, http_response_t *res)
 
 	ptr = buf;
 	while (ptr < buf + req->len) {
-
 		i = wordend(&ptr, BUFSIZ, req->len);
 		if (i == 0 || i == req->len) break;
-
 		iovset(&header, ptr, i - 1);
-
 		ptr += i + 1;
 		crlf = strstr(ptr, "\r\n");
-
 		iovset(&val, ptr, crlf - ptr);
-
-		writev(1, &header, 1);
-		write(1, "\n", 1);
-		writev(1, &val, 1);
-		write(1, "\n", 1);
-
 		if ((err = http_header_process(req, res, &header, &val)))
 			return err;
-
 		ptr = crlf + 2;
 	}
 	return HTTP_OK;
@@ -190,9 +182,12 @@ int conn(int sock, proto_t *p)
 
 	err = http_request_read(sock, &req, &res);
 
-	fprintf(stderr, "My hostly goodness is...");
+	fprintf(stderr, "Host requested:");
 	writev(1, &req.host, 1);
 	write(1, "\n", 1);
+
+	DEBUG("Upsec: %i", req.upsec);
+	DEBUG("Close: %i", req.close);
 
 	res.iovs.nmemb = 5;
 
