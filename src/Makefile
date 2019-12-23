@@ -23,6 +23,8 @@ COMMON_OBJECTS:=config.o db.o err.o iov.o log.o
 OBJECTS:=$(PROGRAM).o handler.o $(COMMON_OBJECTS)
 MODULES:=echo.so http.so
 
+CFLAGS += -fPIC
+
 LDFLAGS:=-ldl -lrt -llmdb
 
 .PHONY:		all clean
@@ -47,7 +49,7 @@ http.o:		http.c http.h
 		$(CC) -fPIC -c http.c
 
 config.o:	config.c config.h
-		$(CC) -fPIC -c config.c
+#		$(CC) -fPIC -c config.c
 
 db.o:		db.c db.h
 		$(CC) -fPIC -c db.c
@@ -62,6 +64,9 @@ log.o:		log.c log.h
 
 iov.o:		iov.c iov.h
 		$(CC) -fPIC -c iov.c
+
+str.o:		str.c str.h
+		$(CC) -fPIC -c str.c
 
 clean:
 		rm -f *.o $(PROGRAM)

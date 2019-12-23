@@ -39,7 +39,7 @@
 
 int debug = 0;
 int mods_loaded = 0;
-void **mod = NULL;	/* dlopen handles for modules */
+module_t *mods;	/* dlopen handles for modules */
 int run = 0;
 char yield = 0; /* need to do cleanup call to config_yield() */
 
@@ -149,13 +149,29 @@ int config_int_set(char *klong, int *key, char *val)
 	return 1;
 }
 
+module_t *config_module(char *name, size_t len)
+{
+	module_t *mod = mods;
+	DEBUG("seaching %i modules", mods_loaded);
+	for (int i = 0; i < mods_loaded; i++) {
+		DEBUG("trying '%s'", mod->name);
+		if (!strncmp(mod->name, name, len)) return mod;
+		mod++;
+	}
+	return NULL;
+}
+
 void config_unload_modules()
 {
-	if (mod) {
+	if (mods) {
+		module_t *mod = mods;
 		while (mods_loaded--) {
-			dlclose(mod[mods_loaded]);
+			DEBUG("freeing module [%i] %s", mods_loaded, mod->name);
+			dlclose(mod->ptr);
+			free(mod->name);
+			mod++;
 		}
-		free(mod);
+		free(mods);
 	}
 }
 
@@ -187,21 +203,25 @@ int config_load_modules()
 	err = mdb_cursor_get(cur, &key, &val, MDB_FIRST);
 	err = mdb_cursor_count(cur, &size);
 	DEBUG("loading %u modules", size);
-	mod = calloc(size, sizeof(void *));
+	DEBUG("callocing %u bytes", size * sizeof(module_t));
+	mods = calloc(size, sizeof(module_t));
+	module_t *mod = mods;
 	do {
 		p = (proto_t *)val.mv_data;
 		snprintf(modname, 127, "src/%s.so", p->module); /* FIXME: module path */
 		DEBUG("loading module '%s'", modname);
-		mod[mods_loaded] = dlopen(modname, RTLD_LAZY);
+		mod->name = strdup(modname);
+		mod->ptr = dlopen(modname, RTLD_LAZY);
 		/* init() && config() for each module */
-		if (mod[mods_loaded]) {
+		if (mod->ptr) {
 			int (* init)(int, proto_t*);
 			int (* conf)(proto_t*);
-			init = dlsym(mod[mods_loaded], "init");
+			init = dlsym(mod->ptr, "init");
 			if (!dlerror()) err = init(loglevel, p); /* FIXME: check return from module */
-			conf = dlsym(mod[mods_loaded], "conf");
+			conf = dlsym(mod->ptr, "conf");
 			if (!dlerror()) err = conf(p); /* FIXME: check return from module */
 			mods_loaded++;
+			mod++;
 		}
 		else {
 			DEBUG("Failed to load module: %s", p->module);
@@ -272,22 +292,28 @@ int config_process_proto(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 			if (service) {
 				proto = service->s_proto;
 			}
+			else {
+				ERROR("Unable to find protocol for service '%s'", p->module);
+				err = LSD_ERROR_CONFIG_INVALID;
+			}
 		}
-		if (!strncmp(proto, "tcp", 3)) {
-			p->socktype = SOCK_STREAM;
-		}
-		else if (!strncmp(proto, "udp", 3)) {
-			p->socktype = SOCK_DGRAM;
-		}
-		else if (!strncmp(proto, "raw", 3)) {
-			p->socktype = SOCK_RAW;
-		}
-		else if (!strncmp(proto, "rdm", 3)) {
-			p->socktype = SOCK_RDM;
-		}
-		else {
-			ERROR("Invalid protocol '%s'", proto);
-			err = LSD_ERROR_CONFIG_INVALID;
+		if (proto) {
+			if (!strncmp(proto, "tcp", 3)) {
+				p->socktype = SOCK_STREAM;
+			}
+			else if (!strncmp(proto, "udp", 3)) {
+				p->socktype = SOCK_DGRAM;
+			}
+			else if (!strncmp(proto, "raw", 3)) {
+				p->socktype = SOCK_RAW;
+			}
+			else if (!strncmp(proto, "rdm", 3)) {
+				p->socktype = SOCK_RDM;
+			}
+			else {
+				ERROR("Invalid protocol '%s'", proto);
+				err = LSD_ERROR_CONFIG_INVALID;
+			}
 		}
 		while (len > 0 && isblank(*line)){line++;len--;} /* skip whitespace */
 	}
@@ -325,24 +351,37 @@ int config_process_proto(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 	return err;
 }
 
-#if 0
-void config_process_uri(char *line, size_t len)
+int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 {
-	uri_t *p, *s;
+	//uri_t *p, *s;
+	char *ptr;
+	int err = 0;
 
 	DEBUG("processing uri");
-	s = calloc(1, sizeof(uri_t));
-	s->uri = line;
-	s->uri_len = len;
-	if (c->uris) {
-		for (p = c->uris; p->next; p = p->next);
-		p->next = s;
+
+	(void)len; /* FIXME */
+	(void)txn; /* FIXME */
+	(void)dbi; /* FIXME */
+
+	ptr = strchr(line, ':');
+	loglevel = 127;
+	DEBUG("uri proto: %.*s", (int)(ptr-line), line);
+
+	/* find module for this uri */
+	/* FIXME: modules aren't loaded until *after* we finish reading the
+	 * config file... */
+	module_t *mod = config_module(line, (size_t)(ptr-line));
+	if (mod) {
+		int (* load_uri)(char *);
+		load_uri = dlsym(mod->ptr, "load_uri");
+		if (!dlerror()) err = load_uri(ptr);
 	}
 	else {
-		c->uris = s;
+		DEBUG("unable to find module");
 	}
+
+	return err;
 }
-#endif
 
 void config_close()
 {
@@ -823,9 +862,8 @@ int config_process_line(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi[])
 	else if (!strcmp(word, "proto")) {
 		err = config_process_proto(line, len, txn, dbi[DB_PROTO]);
 	}
-	/* TODO: process uris */
 	else if (!strcmp(word, "uri")) {
-		DEBUG("uri"); /* TODO */
+		err = config_process_uri(line, len, txn, dbi[DB_URI]);
 	}
 	else
 		return LSD_ERROR_CONFIG_READ;
@@ -919,6 +957,7 @@ int config_init(int argc, char **argv)
 		if ((fd = fopen(filename, "r")) == NULL) FAIL(LSD_ERROR_CONFIG_READ);
 		err = config_read(fd, txn, dbi);
 		fclose(fd);
+		if (err) goto config_init_done;
 		/* commandline options must override config, so do this again */
 		if ((err = config_opts(&argc, argv, txn, dbi[DB_GLOBAL])))
 			goto config_init_done;

@@ -66,6 +66,12 @@ typedef enum {
 	X("port", 1, 65535)
 #undef X
 
+typedef struct module_s module_t;
+struct module_s {
+	char *		name;
+	void *		ptr;
+};
+
 typedef struct proto_s proto_t;
 struct proto_s {
 	uint16_t	port;
@@ -93,6 +99,7 @@ struct uri_s {
 
 extern int debug;
 extern char yield;
+extern module_t *mods;
 
 void	config_close();
 char *	config_db(char db, char name[2]);

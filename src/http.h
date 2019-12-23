@@ -77,6 +77,9 @@ struct http_response_s {
 /* handle new connection */
 int conn(int sock, proto_t *p);
 
+/* process uri config line */
+int load_uri(char *uri);
+
 /* (re)load config */
 int conf(proto_t *p);
 

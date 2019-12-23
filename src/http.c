@@ -222,6 +222,11 @@ int conn(int sock, proto_t *p)
 	return err;
 }
 
+int load_uri(char *uri)
+{
+	fprintf(stderr, "URI here\n\n");
+}
+
 /* load/reload config */
 int conf(proto_t *p)
 {
