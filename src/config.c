@@ -149,6 +149,32 @@ int config_int_set(char *klong, int *key, char *val)
 	return 1;
 }
 
+/* load a single module */
+int config_load_module(module_t *mod, proto_t *p)
+{
+	int err = 0;
+	char modname[128];
+	snprintf(modname, 127, "src/%s.so", p->module); /* FIXME: module path */
+	DEBUG("loading module '%s'", modname);
+	mod->name = strdup(modname);
+	mod->ptr = dlopen(modname, RTLD_LAZY);
+	/* init() && config() for each module */
+	if (mod->ptr) {
+		int (* init)(int, proto_t*);
+		int (* conf)(proto_t*);
+		init = dlsym(mod->ptr, "init");
+		if (!dlerror()) err = init(loglevel, p); /* FIXME: check return from module */
+		conf = dlsym(mod->ptr, "conf");
+		if (!dlerror()) err = conf(p); /* FIXME: check return from module */
+		mods_loaded++;
+	}
+	else {
+		FAILMSG(LSD_ERROR_LOAD_MODULE, "Failed to load module: %s",
+								p->module);
+	}
+	return err;
+}
+
 module_t *config_module(char *name, size_t len)
 {
 	module_t *mod = mods;
@@ -177,14 +203,12 @@ void config_unload_modules()
 
 int config_load_modules()
 {
-	proto_t *p;
 	MDB_txn *txn;
 	MDB_cursor *cur;
 	MDB_dbi dbi;
 	MDB_val key;
 	MDB_val val;
 	size_t size;
-	char modname[128];
 	char dbname[2];
 	int err = 0;
 
@@ -207,25 +231,9 @@ int config_load_modules()
 	mods = calloc(size, sizeof(module_t));
 	module_t *mod = mods;
 	do {
-		p = (proto_t *)val.mv_data;
-		snprintf(modname, 127, "src/%s.so", p->module); /* FIXME: module path */
-		DEBUG("loading module '%s'", modname);
-		mod->name = strdup(modname);
-		mod->ptr = dlopen(modname, RTLD_LAZY);
-		/* init() && config() for each module */
-		if (mod->ptr) {
-			int (* init)(int, proto_t*);
-			int (* conf)(proto_t*);
-			init = dlsym(mod->ptr, "init");
-			if (!dlerror()) err = init(loglevel, p); /* FIXME: check return from module */
-			conf = dlsym(mod->ptr, "conf");
-			if (!dlerror()) err = conf(p); /* FIXME: check return from module */
-			mods_loaded++;
-			mod++;
-		}
-		else {
-			DEBUG("Failed to load module: %s", p->module);
-		}
+		if ((err = config_load_module(mod, (proto_t *)val.mv_data)))
+			break;
+		mod++;
 	}
 	while (!(err = mdb_cursor_get(cur, &key, &val, MDB_NEXT)));
 	mdb_cursor_close(cur);
