@@ -43,12 +43,10 @@
 #include <netdb.h>
 #include <unistd.h>
 
-void *module = NULL;
-
 void handler_close()
 {
 	if (yield) config_yield_free();
-	if (module) dlclose(module);
+	config_unload_modules();
 	free(socks);
 	config_close();
 	DEBUG("handler exiting");
@@ -59,6 +57,7 @@ int handle_connection(int idx, int sock)
 {
 	MDB_val val = { 0, NULL };
 	proto_t *p;
+	module_t *mod;
 	int err = 0;
 
 	DEBUG("connection received on socket %i", idx);
@@ -68,18 +67,14 @@ int handle_connection(int idx, int sock)
 	if (val.mv_size > 0) {
 		/* call handler module */
 		p = (proto_t *)val.mv_data;
-		char modname[128];
-		snprintf(modname, 127, "src/%s.so", p->module); /* FIXME: module path */
-		DEBUG("loading module '%s'", modname);
-		module = dlopen(modname, RTLD_LAZY);
-		if (!module) goto handle_connection_err;
+		mod = (module_t *)config_module(p->module, strlen(p->module));
+		if (!mod) goto handle_connection_err;
 		int (* conn)(int, proto_t*);
-		conn = dlsym(module, "conn");
+		conn = dlsym(mod->ptr, "conn");
 		if (conn) {
 		/* TODO: handle return codes - provide different facilities to different plugins */
 			err = conn(sock, p);
 			/* TODO if (err == NEW_LINE_PLEASE) etc. */
-			dlclose(module); module = NULL;
 			goto handle_connection_exit;
 		}
 		else goto handle_connection_err;
@@ -155,7 +150,6 @@ void handler_start(int n)
 	/* handler needs own database env */
 	mdb_env_close(env); env = NULL;
 	config_init_db();
-	config_unload_modules();
 
 	/* prepare file descriptors for select() */
 	for (int i = 0; i < 3; i++) { FD_ZERO(&fds[i]); }

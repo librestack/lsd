@@ -149,42 +149,63 @@ int config_int_set(char *klong, int *key, char *val)
 	return 1;
 }
 
-/* load a single module */
-int config_load_module(module_t *mod, proto_t *p)
-{
-	int err = 0;
-	char modname[128];
-	snprintf(modname, 127, "src/%s.so", p->module); /* FIXME: module path */
-	DEBUG("loading module '%s'", modname);
-	mod->name = strdup(modname);
-	mod->ptr = dlopen(modname, RTLD_LAZY);
-	/* init() && config() for each module */
-	if (mod->ptr) {
-		int (* init)(int, proto_t*);
-		int (* conf)(proto_t*);
-		init = dlsym(mod->ptr, "init");
-		if (!dlerror()) err = init(loglevel, p); /* FIXME: check return from module */
-		conf = dlsym(mod->ptr, "conf");
-		if (!dlerror()) err = conf(p); /* FIXME: check return from module */
-		mods_loaded++;
-	}
-	else {
-		FAILMSG(LSD_ERROR_LOAD_MODULE, "Failed to load module: %s",
-								p->module);
-	}
-	return err;
-}
-
+/* find module handle by name
+ * TODO: if not loaded, load it */
 module_t *config_module(char *name, size_t len)
 {
 	module_t *mod = mods;
-	DEBUG("seaching %i modules", mods_loaded);
+	DEBUG("seaching %i modules for '%.*s'", mods_loaded, len, name);
 	for (int i = 0; i < mods_loaded; i++) {
-		DEBUG("trying '%s'", mod->name);
-		if (!strncmp(mod->name, name, len)) return mod;
+		if (!mod) break;
+		DEBUG("trying '%s'=='%.*s'", mod->name, len, name);
+		if (!strncmp(mod->name, name, len)) {
+			DEBUG("found '%.*s'", len, name);
+			return mod;
+		}
 		mod++;
 	}
 	return NULL;
+}
+
+/* load a single module */
+int config_load_module(module_t *mod, char *name, size_t len)
+{
+	int err = 0;
+	char modpath[128];
+	snprintf(modpath, 127, "src/%.*s.so", (int)len, name); /* FIXME: module path */
+	/* TODO: check return of snprintf */
+	DEBUG("loading module '%s'", modpath);
+
+	/* first, check if we have it loaded already */
+	if (config_module(name, len)) return 0;
+
+	/* FIXME: allocate memory dynamically */
+	if (!mods) {
+		mods = calloc(32, sizeof(module_t));
+	}
+
+	mod = mods;
+	for (int i = 0; i < mods_loaded; i++) { mod++; } /* find last */
+	mod->ptr = dlopen(modpath, RTLD_LAZY);
+	if (mod->ptr) {
+		mod->name = strndup(name, len);
+		DEBUG("module '%s' loaded successfully", mod->name);
+		int (* init)(); int (* conf)();
+		if ((init = dlsym(mod->ptr, "init")))
+			if ((err = init())) goto err_load;
+		if ((conf = dlsym(mod->ptr, "conf")))
+			if ((err = conf())) goto err_load;
+		mods_loaded++;
+	}
+	else {
+		ERROR("%s", dlerror());
+		FAILMSG(LSD_ERROR_LOAD_MODULE, "Failed to load module: %s", name);
+	}
+	return err;
+err_load:
+	ERROR("%s", dlerror());
+	dlclose(mod->ptr);
+	return err;
 }
 
 void config_unload_modules()
@@ -193,6 +214,9 @@ void config_unload_modules()
 		module_t *mod = mods;
 		while (mods_loaded--) {
 			DEBUG("freeing module [%i] %s", mods_loaded, mod->name);
+			int (* finit)();
+			if ((finit = dlsym(mod->ptr, "finit")))
+				finit();
 			dlclose(mod->ptr);
 			free(mod->name);
 			mod++;
@@ -214,31 +238,39 @@ int config_load_modules()
 
 	config_db(DB_PROTO, dbname);
 	if ((err = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn)) != 0)
-		DIE("%s()[%i]: %s", __func__, __LINE__, mdb_strerror(err));
-	if((err = mdb_dbi_open(txn, dbname, MDB_DUPSORT, &dbi)) != 0) {
-		ERROR("problem opening database '%s'", dbname);
-		DIE("%s()[%i]: %s", __func__,  __LINE__,mdb_strerror(err));
-	}
+		goto config_load_modules_err;
+	if((err = mdb_dbi_open(txn, dbname, MDB_DUPSORT, &dbi)) != 0)
+		goto config_load_modules_err;
 	if ((err = mdb_cursor_open(txn, dbi, &cur)) != 0)
-		DIE("%s()[%i]: %s", __func__,  __LINE__,mdb_strerror(err));
-
+		goto config_load_modules_err;
 	key.mv_data = "proto";
 	key.mv_size = strlen(key.mv_data);
-	err = mdb_cursor_get(cur, &key, &val, MDB_FIRST);
-	err = mdb_cursor_count(cur, &size);
+	if (!(err = mdb_cursor_get(cur, &key, &val, MDB_FIRST)))
+		goto config_load_modules_err;
+	if (!(err = mdb_cursor_count(cur, &size)))
+		goto config_load_modules_err;
+	/* TODO: check size */
 	DEBUG("loading %u modules", size);
-	DEBUG("callocing %u bytes", size * sizeof(module_t));
 	mods = calloc(size, sizeof(module_t));
 	module_t *mod = mods;
 	do {
-		if ((err = config_load_module(mod, (proto_t *)val.mv_data)))
+		if ((err = config_load_module(mod, ((proto_t *)(val.mv_data))->module,
+					    strlen(((proto_t *)(val.mv_data))->module))))
 			break;
 		mod++;
 	}
 	while (!(err = mdb_cursor_get(cur, &key, &val, MDB_NEXT)));
+	if (err) goto config_load_modules_err;
+cur_close:
 	mdb_cursor_close(cur);
+txn_close:
 	mdb_txn_abort(txn);
 
+	return err;
+config_load_modules_err:
+	ERROR("%s()[%i]: %s", __func__,  __LINE__,mdb_strerror(err));
+	if (cur) goto cur_close;
+	if (txn) goto txn_close;
 	return err;
 }
 
@@ -361,7 +393,7 @@ int config_process_proto(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 
 int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 {
-	//uri_t *p, *s;
+	module_t *mod;
 	char *ptr;
 	int err = 0;
 
@@ -372,20 +404,24 @@ int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 	(void)dbi; /* FIXME */
 
 	ptr = strchr(line, ':');
+	len = (size_t)(ptr-line);
 	loglevel = 127;
-	DEBUG("uri proto: %.*s", (int)(ptr-line), line);
+	DEBUG("uri proto: %.*s", len, line);
 
-	/* find module for this uri */
-	/* FIXME: modules aren't loaded until *after* we finish reading the
-	 * config file... */
-	module_t *mod = config_module(line, (size_t)(ptr-line));
+	/* find or load module for this uri */
+	if (!(mod = config_module(line, len)))
+		if (!(config_load_module(mod, line, len)))
+			if (!(mod = config_module(line, len)))
+				return LSD_ERROR_LOAD_MODULE;
+
 	if (mod) {
 		int (* load_uri)(char *);
 		load_uri = dlsym(mod->ptr, "load_uri");
-		if (!dlerror()) err = load_uri(ptr);
+		if (!dlerror()) err = load_uri(line);
 	}
 	else {
 		DEBUG("unable to find module");
+		return LSD_ERROR_LOAD_MODULE;
 	}
 
 	return err;
@@ -394,6 +430,7 @@ int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 void config_close()
 {
 	mdb_env_close(env);
+	env = NULL;
 }
 
 /* fetch and return a copy */
@@ -593,14 +630,16 @@ int config_yield(char db, char *key, MDB_val *val)
 	switch (state) {
 	case CONFIG_INIT:
 		yield = 1;
-		if ((err = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn)) != 0)
-			DIE("%s()[%i]: %s", __func__, __LINE__, mdb_strerror(err));
+		if ((err = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn)) != 0) 
+			FAILMSG(LSD_ERROR_DB, "%s()[%i]: %s", __func__, \
+						__LINE__, mdb_strerror(err));
 		if((err = mdb_dbi_open(txn, dbname, MDB_DUPSORT, &dbi)) != 0) {
-			ERROR("problem opening database '%s'", dbname);
-			DIE("%s()[%i]: %s", __func__,  __LINE__,mdb_strerror(err));
+			FAILMSG(LSD_ERROR_DB, "%s()[%i]: %s", __func__, \
+						__LINE__,mdb_strerror(err));
 		}
 		if ((err = mdb_cursor_open(txn, dbi, &cur)) != 0)
-			DIE("%s()[%i]: %s", __func__,  __LINE__,mdb_strerror(err));
+			FAILMSG(LSD_ERROR_DB, "%s()[%i]: %s", __func__, \
+						__LINE__,mdb_strerror(err));
 		state = CONFIG_NEXT;
 		break;
 	case CONFIG_NEXT:
@@ -625,7 +664,8 @@ int config_yield(char db, char *key, MDB_val *val)
 			state = CONFIG_FINAL;
 			return state;
 		}
-		ERROR("%s(%i): %s", __func__, __LINE__, mdb_strerror(err));
+		FAILMSG(LSD_ERROR_DB, "%s(%i): %s", __func__, __LINE__, \
+							mdb_strerror(err));
 	}
 
 	return (err == 0) ? state : 0;

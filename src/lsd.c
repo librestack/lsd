@@ -162,7 +162,7 @@ int main(int argc, char **argv)
 
 	INFO("Starting up...");
 
-	config_load_modules();
+	//config_load_modules();
 
 	/* listen on sockets */
 	if (!(run = server_listen())) {

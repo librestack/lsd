@@ -36,7 +36,7 @@ lsd:		$(OBJECTS)
 
 $(PROGRAM).o:	$(PROGRAM).c $(PROGRAM).h
 
-echo.so:	echo.o
+echo.so:	echo.o $(COMMON_OBJECTS)
 		$(CC) -shared -fPIC -o $@  $^
 
 echo.o:		echo.c

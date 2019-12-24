@@ -108,6 +108,7 @@ int	config_get_copy(const char *db, char *key, MDB_val *val, MDB_txn *txn, MDB_d
 int	config_del(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi);
 int	config_init(int argc, char **argv);
 void	config_init_db();
+module_t *config_module(char *name, size_t len);
 int	config_set(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi);
 int	config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi);
 int	config_load_modules();

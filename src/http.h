@@ -81,7 +81,10 @@ int conn(int sock, proto_t *p);
 int load_uri(char *uri);
 
 /* (re)load config */
-int conf(proto_t *p);
+int conf();
+
+/* finalize */
+void finit();
 
 /* initialize */
-int init(int loggin, proto_t *p);
+int init();

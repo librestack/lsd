@@ -171,12 +171,14 @@ int http_response_send(int sock, http_request_t *req, http_response_t *res)
 http_status_code_t
 http_request_handle(http_request_t *req, http_response_t *res)
 {
+	return 0;
 	DEBUG("%s()", __func__);
 	MDB_val val = { 0, NULL };
 	uri_t *u;
 
-	config_init_db();
-	for (int i = 0; config_yield(DB_URI, "uri", &val) == CONFIG_NEXT; i++) {
+/*TODO TODO TODO TODO TODO TODO TODO TODO */
+
+	for (int i = 0; config_yield(DB_URI, "uri", &val) == CONFIG_NEXT; i++) { /* FIXME */
 		DEBUG("checking uri");
 	}
 	config_yield_free();
@@ -224,21 +226,27 @@ int conn(int sock, proto_t *p)
 
 int load_uri(char *uri)
 {
-	fprintf(stderr, "URI here\n\n");
+	fprintf(stderr, "URI here: '%s'\n", uri);
+
+	/* TODO: process this and write to module db */
+
+	return 0;
+}
+void finit()
+{
+	config_close();
 }
 
 /* load/reload config */
-int conf(proto_t *p)
+int conf()
 {
 	/* TODO */
-	DEBUG("%s: conf()", p->module);
 	return 0;
 }
 
 /* initialize */
-int init(int logging, proto_t *p)
+int init()
 {
-	loglevel = logging;
-	DEBUG("%s: init(), loglevel=%i", p->module, loglevel);
+	config_init_db();
 	return 0;
 }
