@@ -809,7 +809,7 @@ void config_drop(MDB_txn *txn, MDB_dbi dbi[])
 	}
 }
 
-int (config_cmds(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi[]))
+int config_cmds(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi[])
 {
 	if (!(*argc)) return 0;
 	/* commands must be last argument */
