@@ -245,9 +245,9 @@ int config_load_modules()
 		goto config_load_modules_err;
 	key.mv_data = "proto";
 	key.mv_size = strlen(key.mv_data);
-	if (!(err = mdb_cursor_get(cur, &key, &val, MDB_FIRST)))
+	if ((err = mdb_cursor_get(cur, &key, &val, MDB_FIRST)))
 		goto config_load_modules_err;
-	if (!(err = mdb_cursor_count(cur, &size)))
+	if ((err = mdb_cursor_count(cur, &size)))
 		goto config_load_modules_err;
 	/* TODO: check size */
 	DEBUG("loading %u modules", size);
