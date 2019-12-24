@@ -39,34 +39,26 @@ $(PROGRAM).o:	$(PROGRAM).c $(PROGRAM).h
 echo.so:	echo.o $(COMMON_OBJECTS)
 		$(CC) -shared -fPIC -o $@  $^
 
-echo.o:		echo.c
-		$(CC) -fPIC -c $^
-
 http.so:	http.o $(COMMON_OBJECTS)
 		$(CC) -shared -fPIC -o $@  $^
 
+echo.o:		echo.c
+
 http.o:		http.c http.h
-		$(CC) -fPIC -c http.c
 
 config.o:	config.c config.h
-#		$(CC) -fPIC -c config.c
 
 db.o:		db.c db.h
-		$(CC) -fPIC -c db.c
 
 err.o:		err.c err.h
-		$(CC) -fPIC -c err.c
 
 handler.o:	handler.c handler.h
 
 log.o:		log.c log.h
-		$(CC) -fPIC -c log.c
 
 iov.o:		iov.c iov.h
-		$(CC) -fPIC -c iov.c
 
 str.o:		str.c str.h
-		$(CC) -fPIC -c str.c
 
 clean:
 		rm -f *.o $(PROGRAM)

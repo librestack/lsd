@@ -50,7 +50,7 @@ size_t http_status(char *status, http_status_code_t code)
 /* advance ptr to end of word, return length */
 size_t wordend(char **ptr, size_t ptrmax, size_t maxlen)
 {
-	int i;
+	size_t i;
 	maxlen = (ptrmax < maxlen) ? ptrmax : maxlen; /* lowest limit */
 	for (i = 0; i < maxlen && !isspace((*ptr)[i]); i++);
 	return i;
@@ -75,6 +75,8 @@ size_t skipspace(char **ptr, size_t i, size_t maxlen)
 int http_header_process(http_request_t *req, http_response_t *res,
 			struct iovec *k, struct iovec *v)
 {
+	(void) req; /* FIXME - unused */
+	(void) res; /* FIXME - unused */
 	if (!iovcmp(k, "Host")) {
 		iovcpy(&req->host, v);
 	}
@@ -162,6 +164,9 @@ http_request_read(int sock, http_request_t *req, http_response_t *res)
 
 int http_response_send(int sock, http_request_t *req, http_response_t *res)
 {
+	(void) req; /* FIXME - unused */
+	(void) res; /* FIXME - unused */
+
 	setcork(sock, 1);
 	writev(sock, res->iovs.iov, res->iovs.idx);
 	setcork(sock, 0);
@@ -171,10 +176,11 @@ int http_response_send(int sock, http_request_t *req, http_response_t *res)
 http_status_code_t
 http_request_handle(http_request_t *req, http_response_t *res)
 {
-	return 0;
+	(void) req; /* FIXME - unused */
+	(void) res; /* FIXME - unused */
+	return 0; /* FIXME */
 	DEBUG("%s()", __func__);
 	MDB_val val = { 0, NULL };
-	uri_t *u;
 
 /*TODO TODO TODO TODO TODO TODO TODO TODO */
 
@@ -189,13 +195,13 @@ http_request_handle(http_request_t *req, http_response_t *res)
 /* Handle new connection */
 int conn(int sock, proto_t *p)
 {
+	(void) p; /* FIXME - unused */
 	loglevel = 127; /* FIXME */
 	http_response_t res = {};
 	http_request_t req = {};
 	char status[128];
 	char clen[128];
 	char ctyp[128];
-	size_t len;
 	int err = 0;
 
 	err = http_request_read(sock, &req, &res);
