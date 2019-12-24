@@ -396,15 +396,19 @@ int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 	module_t *mod;
 	char *ptr;
 	int err = 0;
+	static size_t uris = 0;
 
 	DEBUG("processing uri");
 
-	/* TODO: store a raw copy of the uris for config dump */
+	/* store a raw copy of the uris for config dump */
 	/* to preserve ordering, using integer keys */
-
-	(void)len; /* FIXME */
-	(void)txn; /* FIXME */
-	(void)dbi; /* FIXME */
+	MDB_val k, v;
+	k.mv_size = sizeof(size_t);
+	k.mv_data = &uris;
+	v.mv_size = len;
+	v.mv_data = line;
+	config_set(NULL, &k, &v, txn, dbi);
+	uris++;
 
 	ptr = strchr(line, ':');
 	len = (size_t)(ptr-line);
@@ -773,8 +777,7 @@ int config_dump(FILE *fd, MDB_txn *txn, MDB_dbi dbi[])
 	if (err) goto config_dump_err;
 	for (op = MDB_FIRST; (err = mdb_cursor_get(cur, &key, &data, op)) == 0; op = MDB_NEXT) {
 		if (!err) {
-			uri_t *u = data.mv_data;
-			fprintf(fd, "uri\t%s\n", u->uri);
+			fprintf(fd, "uri\t%.*s\n", (int)data.mv_size, (char *)data.mv_data);
 		}
 	}
 	mdb_cursor_close(cur);
@@ -985,7 +988,7 @@ int config_init(int argc, char **argv)
 	/* try to open database, else create it */
 	for (int i = 0; i <= DB_URI; i++) {
 		flags = 0;
-		if (i > 0) flags |= MDB_DUPSORT;
+		if (i > 0) flags |= MDB_INTEGERKEY;
 		config_db(i, db);
 		while ((err = mdb_dbi_open(txn, db, flags, &dbi[i])) != 0) {
 			if (err == MDB_NOTFOUND) {
