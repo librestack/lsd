@@ -93,7 +93,7 @@ struct uri_s {
 #define CONFIG_MIN(k, min, max) if (strcmp(key, k) == 0) return min;
 #define CONFIG_MAX(k, min, max) if (strcmp(key, k) == 0) return max;
 #define CONFIG_SET(k, lng, shrt, deflt, helptxt) \
-	config_set(db, k, deflt, txn, dbi);
+	config_set_s(db, k, deflt, txn, dbi);
 #define CONFIG_SET_INT(k, lng, shrt, deflt, helptxt) \
 	config_set_int(db, k, deflt, txn, dbi);
 
@@ -109,7 +109,8 @@ int	config_del(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi);
 int	config_init(int argc, char **argv);
 void	config_init_db();
 module_t *config_module(char *name, size_t len);
-int	config_set(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi);
+int config_set(const char *db, MDB_val *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi);
+int	config_set_s(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi);
 int	config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi);
 int	config_load_modules();
 void	config_unload_modules();

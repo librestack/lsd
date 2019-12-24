@@ -399,6 +399,9 @@ int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 
 	DEBUG("processing uri");
 
+	/* TODO: store a raw copy of the uris for config dump */
+	/* to preserve ordering, using integer keys */
+
 	(void)len; /* FIXME */
 	(void)txn; /* FIXME */
 	(void)dbi; /* FIXME */
@@ -530,19 +533,12 @@ int config_del(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
 	return err;
 }
 
-int config_set(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
+int config_set(const char *db, MDB_val *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi)
 {
 	char commit = 0;
 	int err = 0;
-	MDB_val k,v;
 
 	if (!val) return 0;
-
-	/* prepare key + value */
-	k.mv_size = strlen(key) + 1;
-	k.mv_data = key;
-	v.mv_size = strlen(val) + 1;
-	v.mv_data = val;
 
 	/* create new transaction and dbi handle if none */
 	if (!txn) {
@@ -558,7 +554,7 @@ int config_set(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
 	}
 
 	/* save key/val */
-	if ((err = mdb_put(txn, dbi, &k, &v, 0)) != 0) {
+	if ((err = mdb_put(txn, dbi, key, val, 0)) != 0) {
 		ERROR("%s(): %s", __func__, mdb_strerror(err));
 	}
 
@@ -567,6 +563,22 @@ int config_set(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
 		err = mdb_txn_commit(txn);
 
 	return err;
+}
+
+/* string wrapper for config_set */
+int config_set_s(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
+{
+	MDB_val k,v;
+
+	if (!val) return 0;
+
+	/* prepare key + value */
+	k.mv_size = strlen(key) + 1; /* include NUL byte */
+	k.mv_data = key;
+	v.mv_size = strlen(val) + 1; /* include NUL byte */
+	v.mv_data = val;
+
+	return config_set(db, &k, &v, txn, dbi);
 }
 
 int config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi)
@@ -833,7 +845,7 @@ int config_opt_set(char *k, char *v, MDB_txn *txn, MDB_dbi dbi)
 	if (config_isstr(k)) {
 		DEBUG("%s is str", k);
 		if (!v) FAILMSG(LSD_ERROR_INVALID_OPTS, "%s missing value", k);
-		err = config_set(db, k, v, txn, dbi);
+		err = config_set_s(db, k, v, txn, dbi);
 	}
 	else if (config_isint(k)) {
 		DEBUG("%s is int", k);
