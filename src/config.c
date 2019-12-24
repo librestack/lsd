@@ -260,7 +260,7 @@ int config_load_modules()
 		mod++;
 	}
 	while (!(err = mdb_cursor_get(cur, &key, &val, MDB_NEXT)));
-	if (err) goto config_load_modules_err;
+	if (err != MDB_NOTFOUND) goto config_load_modules_err;
 cur_close:
 	mdb_cursor_close(cur);
 txn_close:
