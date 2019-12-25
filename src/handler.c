@@ -61,7 +61,7 @@ int handle_connection(int idx, int sock)
 	int err = 0;
 
 	DEBUG("connection received on socket %i", idx);
-	for (int i = 0; config_yield(DB_PROTO, "proto", &val) == CONFIG_NEXT; i++) {
+	for (int i = 0; config_yield_s(DB_PROTO, "proto", &val) == CONFIG_NEXT; i++) {
 		if (idx == i) break;
 	}
 	if (val.mv_size > 0) {

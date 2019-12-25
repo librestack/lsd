@@ -183,7 +183,7 @@ http_request_handle(http_request_t *req, http_response_t *res)
 
 /*TODO TODO TODO TODO TODO TODO TODO TODO */
 
-	for (int i = 0; config_yield(DB_URI, "uri", &val) == CONFIG_NEXT; i++) { /* FIXME */
+	for (int i = 0; config_yield(HTTP_DB_URI, NULL, &val) == CONFIG_NEXT; i++) {
 		DEBUG("checking uri");
 	}
 	config_yield_free();

@@ -625,23 +625,18 @@ int config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi
 	return err;
 }
 
-/* return one value at a time. Call with key == NULL to skip to final state clean up */
-int config_yield(char db, char *key, MDB_val *val)
+int config_yield(const char *dbname, MDB_val *key, MDB_val *val)
 {
 	/* FIXME: for this function to be reentrant, we need to store all this
 	 * state and pass it back to the caller */
 	static config_state_t state = CONFIG_INIT;
 	static MDB_txn *txn;
 	static MDB_dbi dbi;
-	static MDB_val k;
 	static MDB_cursor *cur;
 	static MDB_cursor_op op = MDB_FIRST;
-	static char dbname[2];
 	int err = 0;
 
-	if (key)
-		config_db(db, dbname);
-	else
+	if (!key)
 		state = CONFIG_FINAL;
 	switch (state) {
 	case CONFIG_INIT:
@@ -670,9 +665,7 @@ int config_yield(char db, char *key, MDB_val *val)
 	}
 
 	if (state != CONFIG_FINAL) {
-		k.mv_size = strlen(key) + 1;
-		k.mv_data = key;
-		err = mdb_cursor_get(cur, &k, val, op);
+		err = mdb_cursor_get(cur, key, val, op);
 	}
 
 	if (err) {
@@ -687,9 +680,26 @@ int config_yield(char db, char *key, MDB_val *val)
 	return (err == 0) ? state : 0;
 }
 
+/* return one value at a time. Call with key == NULL to skip to final state clean up */
+int config_yield_s(char db, char *key, MDB_val *val)
+{
+	/* FIXME: for this function to be reentrant, we need to store all this
+	 * state and pass it back to the caller */
+	static MDB_val k;
+	static char dbname[2];
+
+	config_db(db, dbname);
+	if (key) {
+		k.mv_size = strlen(key) + 1;
+		k.mv_data = key;
+		return config_yield(dbname, &k, val);
+	}
+	return config_yield(dbname, NULL, val);
+}
+
 void config_yield_free()
 {
-	config_yield(0, NULL, NULL);
+	config_yield_s(0, NULL, NULL);
 	yield = 0;
 }
 

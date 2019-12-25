@@ -62,7 +62,7 @@ int server_listen()
 	MDB_val val;
 
 	/* allocate an array for sockets */
-	while (config_yield(DB_PROTO, "proto", &val) == CONFIG_NEXT) { n++; }
+	while (config_yield_s(DB_PROTO, "proto", &val) == CONFIG_NEXT) { n++; }
 	config_yield_free();
 	DEBUG("n = %i", n);
 
@@ -74,7 +74,7 @@ int server_listen()
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_flags = AI_PASSIVE;
-	while (config_yield(DB_PROTO, "proto", &val) == CONFIG_NEXT) {
+	while (config_yield_s(DB_PROTO, "proto", &val) == CONFIG_NEXT) {
 		p = val.mv_data;
 		hints.ai_socktype = p->socktype;
 		hints.ai_protocol = p->protocol; /* optional */

@@ -114,7 +114,8 @@ int	config_set_s(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi
 int	config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi);
 int	config_load_modules();
 void	config_unload_modules();
-int	config_yield(char db, char *key, MDB_val *val);
+int config_yield(const char *dbname, MDB_val *key, MDB_val *val);
+int	config_yield_s(char db, char *key, MDB_val *val);
 void	config_yield_free();
 
 #endif /* __LSD_CONFIG */
