@@ -79,7 +79,7 @@ struct http_response_s {
 int conn(int sock, proto_t *p);
 
 /* process uri config line */
-int load_uri(char *uri);
+int load_uri(char *uri, MDB_txn *txn);
 
 /* (re)load config */
 int conf();

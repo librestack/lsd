@@ -51,6 +51,7 @@ int *socks = NULL;
 
 int server_listen()
 {
+	TRACE("%s()", __func__);
 	struct addrinfo hints;
 	struct addrinfo *a = NULL;
 	struct addrinfo *ai = NULL;
@@ -108,6 +109,7 @@ int server_listen()
 
 void sigchld_handler(int __attribute__((unused)) signo)
 {
+	TRACE("%s()", __func__);
 	struct sembuf sop;
 
 	while (waitpid(-1, NULL, WNOHANG) > 0) --handlers; /* reap children */
@@ -125,6 +127,7 @@ void sigchld_handler(int __attribute__((unused)) signo)
 
 void sighup_handler(int __attribute__((unused)) signo)
 {
+	TRACE("%s()", __func__);
 	if (pid > 0) {
 		DEBUG("HUP received by controller");
 		/* reload config */
@@ -138,6 +141,7 @@ void sighup_handler(int __attribute__((unused)) signo)
 
 void sigint_handler(int __attribute__((unused)) signo)
 {
+	TRACE("%s()", __func__);
 	if (pid > 0) {
 		DEBUG("INT received by controller");
 		run = 0;

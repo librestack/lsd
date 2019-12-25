@@ -234,10 +234,12 @@ int conn(int sock, proto_t *p)
 	return err;
 }
 
-int load_uri(char *uri)
+int load_uri(char *uri, MDB_txn *txn)
 {
 	MDB_val k,v;
 	static size_t uris = 0;
+
+	config_init_db();
 
 	fprintf(stderr, "URI here: '%s'\n", uri);
 
@@ -247,7 +249,7 @@ int load_uri(char *uri)
 	k.mv_size = sizeof(size_t);
 	v.mv_data = uri;
 	v.mv_size = strlen(uri);
-	config_set(HTTP_DB_URI, &k, &v, NULL, 0, MDB_INTEGERKEY);
+	config_set(HTTP_DB_URI, &k, &v, txn, 0, MDB_INTEGERKEY | MDB_CREATE);
 	uris++;
 
 	return 0;
@@ -266,5 +268,6 @@ int conf()
 /* initialize */
 int init()
 {
+	config_init_db();
 	return 0;
 }
