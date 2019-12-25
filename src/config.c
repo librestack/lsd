@@ -407,7 +407,7 @@ int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 	k.mv_data = &uris;
 	v.mv_size = len;
 	v.mv_data = line;
-	config_set(NULL, &k, &v, txn, dbi);
+	config_set(NULL, &k, &v, txn, dbi, 0);
 	uris++;
 
 	ptr = strchr(line, ':');
@@ -537,7 +537,7 @@ int config_del(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
 	return err;
 }
 
-int config_set(const char *db, MDB_val *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi)
+int config_set(const char *db, MDB_val *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi, int flags)
 {
 	char commit = 0;
 	int err = 0;
@@ -552,7 +552,7 @@ int config_set(const char *db, MDB_val *key, MDB_val *val, MDB_txn *txn, MDB_dbi
 		commit = 1;
 	}
 	if (!dbi) {
-		if ((err = mdb_dbi_open(txn, db, MDB_CREATE, &dbi)) != 0) {
+		if ((err = mdb_dbi_open(txn, db, MDB_CREATE | flags, &dbi)) != 0) {
 			ERROR("%s(): %s", __func__, mdb_strerror(err));
 		}
 	}
@@ -582,7 +582,7 @@ int config_set_s(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi
 	v.mv_size = strlen(val) + 1; /* include NUL byte */
 	v.mv_data = val;
 
-	return config_set(db, &k, &v, txn, dbi);
+	return config_set(db, &k, &v, txn, dbi, 0);
 }
 
 int config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi)

@@ -178,7 +178,6 @@ http_request_handle(http_request_t *req, http_response_t *res)
 {
 	(void) req; /* FIXME - unused */
 	(void) res; /* FIXME - unused */
-	return 0; /* FIXME */
 	DEBUG("%s()", __func__);
 	MDB_val val = { 0, NULL };
 
@@ -203,6 +202,11 @@ int conn(int sock, proto_t *p)
 	char clen[128];
 	char ctyp[128];
 	int err = 0;
+
+	/* we need to do this here, so the env is created in this process
+	 * at init() time, the module is being called by the controller, and we
+	 * can't share the env from a different process */
+	config_init_db();
 
 	err = http_request_read(sock, &req, &res);
 
@@ -232,9 +236,19 @@ int conn(int sock, proto_t *p)
 
 int load_uri(char *uri)
 {
+	MDB_val k,v;
+	static size_t uris = 0;
+
 	fprintf(stderr, "URI here: '%s'\n", uri);
 
-	/* TODO: process this and write to module db */
+	/* TODO: actually process this and write to module db */
+
+	k.mv_data = &uris;
+	k.mv_size = sizeof(size_t);
+	v.mv_data = uri;
+	v.mv_size = strlen(uri);
+	config_set(HTTP_DB_URI, &k, &v, NULL, 0, MDB_INTEGERKEY);
+	uris++;
 
 	return 0;
 }
@@ -246,13 +260,11 @@ void finit()
 /* load/reload config */
 int conf()
 {
-	/* TODO */
 	return 0;
 }
 
 /* initialize */
 int init()
 {
-	config_init_db();
 	return 0;
 }
