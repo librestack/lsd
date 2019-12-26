@@ -998,8 +998,7 @@ int config_create_dbs(MDB_txn *txn, MDB_dbi *dbi)
 	char db[2];
 	/* try to open database, else create it */
 	for (int i = 0; i <= DB_URI; i++) {
-		flags = 0; /* FIXME: probably not needed - if one db needed, all are */
-		if (i > 0) flags |= MDB_INTEGERKEY; /* FIXME: just use (i == 1) */
+		if (i == 1) flags |= MDB_INTEGERKEY;
 		config_db(i, db);
 		while ((err = mdb_dbi_open(txn, db, flags, &dbi[i]))) {
 			if (err == MDB_NOTFOUND) {
