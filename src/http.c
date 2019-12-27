@@ -206,7 +206,7 @@ int conn(int sock, proto_t *p)
 	/* we need to do this here, so the env is created in this process
 	 * at init() time, the module is being called by the controller, and we
 	 * can't share the env from a different process */
-	config_init_db();
+	env = NULL; config_init_db();
 
 	err = http_request_read(sock, &req, &res);
 
@@ -239,11 +239,10 @@ int load_uri(char *uri, MDB_txn *txn)
 	MDB_val k,v;
 	static size_t uris = 0;
 
-	config_init_db();
-
 	fprintf(stderr, "URI here: '%s'\n", uri);
 
 	/* TODO: actually process this and write to module db */
+/*TODO TODO TODO TODO TODO TODO TODO TODO */
 
 	k.mv_data = &uris;
 	k.mv_size = sizeof(size_t);
@@ -268,6 +267,5 @@ int conf()
 /* initialize */
 int init()
 {
-	config_init_db();
 	return 0;
 }
