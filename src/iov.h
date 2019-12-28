@@ -34,9 +34,14 @@ struct iovstack_s {
 	size_t nmemb;			/* min amount to extend stack by each time */
 };
 
-int iovcmp(struct iovec *k, void *ptr);
+int iovmatch(struct iovec *pattern, struct iovec *string, int flags);
+int iovcmp(struct iovec *c1, struct iovec *c2);
+int iovstrcmp(struct iovec *k, void *ptr);
+int iovstrncmp(struct iovec *k, void *ptr, size_t len);
 struct iovec *iovcpy(struct iovec *dst, struct iovec *src);
 struct iovec *iovset(struct iovec *iov, void *base, size_t len);
 int iov_push(iovstack_t *iovs, void *base, size_t len);
+int iov_pushs(iovstack_t *iovs, char *str);
+int iov_pushv(iovstack_t *iovs, struct iovec *iov);
 
 #endif /* __IOV_H */

@@ -33,6 +33,9 @@ typedef enum {
 	HTTP_SWITCHING_PROTOCOLS        = 101,
 	HTTP_OK                         = 200,
 	HTTP_CREATED                    = 201,
+	HTTP_MOVED_PERMANENTLY		= 301,
+	HTTP_FOUND			= 302,
+	HTTP_SEE_OTHER			= 303,
 	HTTP_BAD_REQUEST                = 400,
 	HTTP_UNAUTHORIZED               = 401,
 	HTTP_FORBIDDEN                  = 403,
@@ -52,8 +55,20 @@ typedef enum {
 	HTTP_ENCODING_DEFLATE		= 2,
 } http_encoding_t;
 
+enum {
+	HTTP_METHOD,
+	HTTP_ACTION,
+	HTTP_ARGS,
+	HTTP_HOST,
+	HTTP_DOMAIN,
+	HTTP_PORT,
+	HTTP_PATH,
+	HTTP_PARTS,	/* count items in enum */
+};
+
 typedef struct http_request_s http_request_t;
 struct http_request_s {
+	proto_t *proto;			/* protocol details */
 	struct iovec httpv;             /* HTTP version */
 	struct iovec method;            /* HTTP request method (GET, POST etc.) */
 	struct iovec uri;               /* resource (url) requested */
@@ -69,10 +84,12 @@ struct http_request_s {
 
 typedef struct http_response_s http_response_t;
 struct http_response_s {
-	iovstack_t iovs;
+	iovstack_t iovs;		/* iovec response array */
+	iovstack_t head;		/* iovec header array */
+	struct iovec uri[HTTP_PARTS];	/* matched config uri */
+	struct iovec body;		/* Response body */
 	http_status_code_t code;        /* HTTP response code */
 	http_encoding_t encoding;	/* gzip, deflate etc. */
-	struct iovec body;		/* Response body */
 };
 
 /* handle new connection */

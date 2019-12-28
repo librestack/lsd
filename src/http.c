@@ -34,6 +34,8 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#define IOVSIZE 5 /* number of iov structures to allocate at once */
+
 char buf[BUFSIZ];
 struct iovec *msg_iov;
 
@@ -78,25 +80,25 @@ int http_header_process(http_request_t *req, http_response_t *res,
 {
 	(void) req; /* FIXME - unused */
 	(void) res; /* FIXME - unused */
-	if (!iovcmp(k, "Host")) {
+	if (!iovstrcmp(k, "Host")) {
 		iovcpy(&req->host, v);
 	}
-	else if (!iovcmp(k, "Accept")) {
+	else if (!iovstrcmp(k, "Accept")) {
 		iovcpy(&req->accept, v);
 	}
-	else if (!iovcmp(k, "Accept-Encoding")) {
+	else if (!iovstrcmp(k, "Accept-Encoding")) {
 		iovcpy(&req->encoding, v);
 	}
-	else if (!iovcmp(k, "Accept-Language")) {
+	else if (!iovstrcmp(k, "Accept-Language")) {
 		iovcpy(&req->lang, v);
 	}
-	else if (!iovcmp(k, "Connection")) {
-		req->close = !iovcmp(v, "close");
+	else if (!iovstrcmp(k, "Connection")) {
+		req->close = !iovstrcmp(v, "close");
 	}
-	else if (!iovcmp(k, "Upgrade-Insecure-Requests")) {
-		req->upsec = !iovcmp(v, "1");
+	else if (!iovstrcmp(k, "Upgrade-Insecure-Requests")) {
+		req->upsec = !iovstrcmp(v, "1");
 	}
-	else if (!iovcmp(k, "Cache-Control")) {
+	else if (!iovstrcmp(k, "Cache-Control")) {
 		iovcpy(&req->cache, v);
 	}
 	return 0;
@@ -174,34 +176,130 @@ int http_response_send(int sock, http_request_t *req, http_response_t *res)
 	return 0;
 }
 
+char * unpackiov(char *ptr, struct iovec *iov)
+{
+	size_t len = *(size_t *)ptr;
+	iov->iov_len = len;
+	ptr += sizeof(size_t);
+	iov->iov_base = (len) ? ptr : NULL;
+	return ptr + len;
+}
+
+int http_match_uri(http_request_t *req, struct iovec uri[HTTP_PARTS])
+{
+	if (iovcmp(&req->method, &uri[HTTP_METHOD]))
+		return 0;
+	
+	/* Host: header */
+	if (uri[HTTP_DOMAIN].iov_len != 0) {
+		if ((iovcmp(&req->host, &uri[HTTP_DOMAIN])) 
+		&&  (iovcmp(&req->host, &uri[HTTP_HOST])))
+			return 0;
+	}
+
+	/* path */
+	if (!iovmatch(&uri[HTTP_PATH], &req->uri, 0))
+		return 1;
+
+	return 0;
+}
+
 http_status_code_t
 http_request_handle(http_request_t *req, http_response_t *res)
 {
-	(void) req; /* FIXME - unused */
-	(void) res; /* FIXME - unused */
 	DEBUG("%s()", __func__);
 	MDB_val val = { 0, NULL };
 
-/*TODO TODO TODO TODO TODO TODO TODO TODO */
+	/* protocol, method, action, args, host, port, path */
+	char *ptr;
+	char tls;
+	char found = 0;
+	struct iovec uri[HTTP_PARTS];
 
 	for (int i = 0; config_yield(HTTP_DB_URI, NULL, &val) == CONFIG_NEXT; i++) {
-		DEBUG("checking uri");
+		ptr = (char *)val.mv_data;
+		tls = ptr[0];
+		ptr++;
+
+		/* https requests only match https uris */
+		if ((tls && strcmp(req->proto->module, "https")) 
+		|| (!tls && !strcmp(req->proto->module, "https")))
+			continue;
+
+		for (int j = 0; j < HTTP_PARTS; j++) {
+			ptr = unpackiov(ptr, &uri[j]);
+		}
+
+		/* http_match_uri */
+		if (http_match_uri(req, uri)) {
+			memcpy(res->uri, uri, sizeof(struct iovec) * HTTP_PARTS);
+			found++;
+			break;
+		}
 	}
 	config_yield_free();
+	if (!found) return HTTP_NOT_FOUND;
 
 	return HTTP_OK;
+}
+
+int http_response_code(struct iovec *uri, size_t len)
+{
+	int code;
+	void * ptr;
+	len++;
+	/* find closing bracket */
+	if (!(ptr = memchr(uri->iov_base, ')', uri->iov_len)))
+		return HTTP_INTERNAL_SERVER_ERROR;
+	/* response code must be 3 bytes */
+	if (ptr - uri->iov_base - len != 3)
+		return HTTP_INTERNAL_SERVER_ERROR;
+	/* extract the code */
+	code = (int)strtol(uri->iov_base + len, NULL, 10);
+	return code;
+}
+
+http_status_code_t
+http_response(http_request_t *req, http_response_t *res)
+{
+	(void)req; /* FIXME */
+	http_status_code_t code = HTTP_OK;
+
+	/* response(code) - just return the status */
+	if (!iovstrncmp(&res->uri[HTTP_ACTION], "response", 8)) {
+		DEBUG("RESPONSE: response");
+		code = http_response_code(&res->uri[HTTP_ACTION], 8);
+		/* TODO: return args as body */
+	}
+	/* redirect(code) - HTTP redirect */
+	else if (!iovstrncmp(&res->uri[HTTP_ACTION], "redirect", 8)) {
+		code = http_response_code(&res->uri[HTTP_ACTION], 8);
+		DEBUG("RESPONSE: redirect (%i)", code);
+		/* TODO: add redirect headers */
+		if ((code < HTTP_MOVED_PERMANENTLY) || (code > HTTP_SEE_OTHER))
+			return HTTP_INTERNAL_SERVER_ERROR;
+		/* FIXME: need to process this a bit */
+		iov_pushs(&res->head, "Location: ");
+		iov_pushv(&res->head, &res->uri[HTTP_ARGS]);
+	}
+	/* serve static file */
+	else if (!iovstrcmp(&res->uri[HTTP_ACTION], "static")) {
+		DEBUG("RESPONSE: static");
+		/* TODO */
+	}
+	else if (!iovstrcmp(&res->uri[HTTP_ACTION], "echo")) {
+		DEBUG("RESPONSE: echo");
+		iovset(&res->body, buf, req->len);
+		iov_pushs(&res->head, "Content-type: text-plain\r\n");
+	}
+	return code;
 }
 
 /* Handle new connection */
 int conn(int sock, proto_t *p)
 {
-	(void) p; /* FIXME - unused */
-	loglevel = 127; /* FIXME */
 	http_response_t res = {};
 	http_request_t req = {};
-	char status[128];
-	char clen[128];
-	char ctyp[128];
 	int err = 0;
 
 	/* we need to do this here, so the env is created in this process
@@ -209,6 +307,7 @@ int conn(int sock, proto_t *p)
 	 * can't share the env from a different process */
 	env = NULL; config_init_db();
 
+	req.proto = p;
 	err = http_request_read(sock, &req, &res);
 
 	DEBUG("Host requested: %.*s", (int)req.host.iov_len,
@@ -218,18 +317,39 @@ int conn(int sock, proto_t *p)
 	DEBUG("Close: %i", req.close);
 
 	if (err == HTTP_OK)
-		err = http_request_handle(&req, &res);
+		res.code = http_request_handle(&req, &res);
 
 	/* prepare response */
-	res.iovs.nmemb = 5; /* number of iov structs to allocate at once */
-	iov_push(&res.iovs, status, http_status(status, err));
-	iov_push(&res.iovs, clen, sprintf(clen, "Content-Length: %zu\r\n", req.len));
-	iov_push(&res.iovs, ctyp, sprintf(ctyp, "Content-type: text-plain\r\n"));
+	if (err == HTTP_OK)
+		res.code = http_response(&req, &res);
+
+	char status[128];
+	char clen[128];
+	res.iovs.nmemb = IOVSIZE;
+	res.head.nmemb = IOVSIZE;
+
+	/* status */
+	iov_push(&res.iovs, status, http_status(status, res.code));
+
+	/* headers */
+	iov_push(&res.iovs, clen,
+		sprintf(clen, "Content-Length: %zu\r\n", res.body.iov_len));
+
+	/* push additional headers */
+	for (size_t i = 0; i < res.head.idx; i++) {
+		iov_pushv(&res.iovs, &res.head.iov[i]);
+	}
+
+	/* blank line */
 	iov_push(&res.iovs, "\r\n", 2);
-	iov_push(&res.iovs, buf, req.len);
+
+	/* body */
+	if (res.body.iov_len)
+		iov_pushv(&res.iovs, &res.body);
 
 	err = http_response_send(sock, &req, &res);
 	free(res.iovs.iov);
+	free(res.head.iov);
 	mdb_env_close(env); env = NULL;
 
 	return err;
@@ -242,7 +362,7 @@ char * packstr(char *ptr, char *str)
 	memcpy(ptr, &len, sizeof(size_t));
 	ptr += sizeof(size_t);
 	if (len) memcpy(ptr, str, len);
-	return ptr;
+	return ptr + len;
 }
 
 int load_uri(char *line, MDB_txn *txn)
@@ -258,6 +378,7 @@ int load_uri(char *line, MDB_txn *txn)
 	char args[len + 1];
 	char *path;
 	char *host = NULL;
+	char *domain = NULL;
 	char *port = NULL; /* FIXME: port -> unsigned short */
 	char pack[len + sizeof(size_t) * 4];
 	char * ptr;
@@ -265,7 +386,7 @@ int load_uri(char *line, MDB_txn *txn)
 
 	memset(pack, 0, sizeof(pack));
 
-	loglevel = 127; /* FIXME - remove */
+	loglevel = 79; /* FIXME - remove */
 
 	/* protocol must be http:// or https:// */
 	if (memcmp(line, "http", 4)) return LSD_ERROR_CONFIG_INVALID;
@@ -284,7 +405,6 @@ int load_uri(char *line, MDB_txn *txn)
 	c = sscanf(line, "%s %s %s %[^\n]", uri, method, action, args);
 	if (c < 3) return LSD_ERROR_CONFIG_INVALID;
 	if (c == 3) args[0] = '\0';
-	DEBUG("uri: '%s'", uri);
 	DEBUG("method: '%s'", method);
 	DEBUG("action: '%s'", action);
 	DEBUG("args: '%s'", args);
@@ -296,11 +416,14 @@ int load_uri(char *line, MDB_txn *txn)
 		DEBUG("No host");
 	}
 	else {
-		path[0] = '\0';
-		host = uri;
-		if ((!memcmp(host, "[", 1)) && (port = strstr(uri, "]:"))) {
+		port = path;
+		path = strdup(path);
+		port[0] = '\0';
+		host = strdup(uri);
+		domain = uri;
+		if ((!memcmp(domain, "[", 1)) && (port = strstr(uri, "]:"))) {
 			/* IPv6 address with port */
-			host++;
+			domain++;
 			port[0] = '\0';
 			port += 2;
 		}
@@ -310,8 +433,8 @@ int load_uri(char *line, MDB_txn *txn)
 			port++;
 		}
 	}
-	path++;
 	DEBUG("Host: '%s'", host);
+	DEBUG("Domain: '%s'", domain);
 	DEBUG("Port: '%s'", port);
 	DEBUG("Path: '%s'", path);
 
@@ -319,14 +442,17 @@ int load_uri(char *line, MDB_txn *txn)
 	ptr = packstr(ptr, action);
 	ptr = packstr(ptr, args);
 	ptr = packstr(ptr, host);
+	ptr = packstr(ptr, domain);
 	ptr = packstr(ptr, port);
 	ptr = packstr(ptr, path);
 	k.mv_data = &uris;
 	k.mv_size = sizeof(size_t);
 	v.mv_data = pack;
-	v.mv_size = sizeof(pack);
+	v.mv_size = ptr - pack;
 	config_set(HTTP_DB_URI, &k, &v, txn, 0, MDB_INTEGERKEY | MDB_CREATE);
 	uris++;
+	free(host);
+	if (path != uri) free(path);
 
 	return 0;
 }
