@@ -21,6 +21,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "err.h"
 #include "http.h"
 #include "iov.h"
 #include "log.h"
@@ -234,20 +235,96 @@ int conn(int sock, proto_t *p)
 	return err;
 }
 
-int load_uri(char *uri, MDB_txn *txn)
+/* pack (length) size_t and string into ptr, return new ptr */
+char * packstr(char *ptr, char *str)
+{
+	size_t len = (str) ? strlen(str) : 0;
+	memcpy(ptr, &len, sizeof(size_t));
+	ptr += sizeof(size_t);
+	if (len) memcpy(ptr, str, len);
+	return ptr;
+}
+
+int load_uri(char *line, MDB_txn *txn)
 {
 	MDB_val k,v;
 	static size_t uris = 0;
+	size_t len = strlen(line);
+	int c;
+	char proto = 0; /* default: http */
+	char uri[len + 1];
+	char method[len + 1];
+	char action[len + 1];
+	char args[len + 1];
+	char *path;
+	char *host = NULL;
+	char *port = NULL; /* FIXME: port -> unsigned short */
+	char pack[len + sizeof(size_t) * 4];
+	char * ptr;
+	char * pp = pack;
 
-	fprintf(stderr, "URI here: '%s'\n", uri);
+	memset(pack, 0, sizeof(pack));
 
-	/* TODO: actually process this and write to module db */
-/*TODO TODO TODO TODO TODO TODO TODO TODO */
+	loglevel = 127; /* FIXME - remove */
 
+	/* protocol must be http:// or https:// */
+	if (memcmp(line, "http", 4)) return LSD_ERROR_CONFIG_INVALID;
+	line += 4;
+	if (!memcmp(line, "s://", 4)) {
+		proto = 1; /* https */
+		line++;
+	}
+	else if (memcmp(line, "://", 3))
+		return LSD_ERROR_CONFIG_INVALID;
+	line += 3;
+	pp[0] = proto;
+	ptr = pp + 1;
+
+	/* split remaining line on whitespace */
+	c = sscanf(line, "%s %s %s %[^\n]", uri, method, action, args);
+	if (c < 3) return LSD_ERROR_CONFIG_INVALID;
+	if (c == 3) args[0] = '\0';
+	DEBUG("uri: '%s'", uri);
+	DEBUG("method: '%s'", method);
+	DEBUG("action: '%s'", action);
+	DEBUG("args: '%s'", args);
+
+	/* split up the uri to get host, port and path */
+	path = strchr(uri, '/');
+	if (!path) return LSD_ERROR_CONFIG_INVALID;
+	if (path == uri) {
+		DEBUG("No host");
+	}
+	else {
+		path[0] = '\0';
+		host = uri;
+		if ((!memcmp(host, "[", 1)) && (port = strstr(uri, "]:"))) {
+			/* IPv6 address with port */
+			host++;
+			port[0] = '\0';
+			port += 2;
+		}
+		else if ((port = strchr(uri, ':'))) {
+			/* host and port */
+			port[0] = '\0';
+			port++;
+		}
+	}
+	path++;
+	DEBUG("Host: '%s'", host);
+	DEBUG("Port: '%s'", port);
+	DEBUG("Path: '%s'", path);
+
+	ptr = packstr(ptr, method);
+	ptr = packstr(ptr, action);
+	ptr = packstr(ptr, args);
+	ptr = packstr(ptr, host);
+	ptr = packstr(ptr, port);
+	ptr = packstr(ptr, path);
 	k.mv_data = &uris;
 	k.mv_size = sizeof(size_t);
-	v.mv_data = uri;
-	v.mv_size = strlen(uri);
+	v.mv_data = pack;
+	v.mv_size = sizeof(pack);
 	config_set(HTTP_DB_URI, &k, &v, txn, 0, MDB_INTEGERKEY | MDB_CREATE);
 	uris++;
 
