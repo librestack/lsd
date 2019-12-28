@@ -262,23 +262,20 @@ int http_response_code(struct iovec *uri, size_t len)
 http_status_code_t
 http_response(http_request_t *req, http_response_t *res)
 {
-	(void)req; /* FIXME */
 	http_status_code_t code = HTTP_OK;
 
-	/* response(code) - just return the status */
+	/* response(code) - return status, with args as body */
 	if (!iovstrncmp(&res->uri[HTTP_ACTION], "response", 8)) {
 		DEBUG("RESPONSE: response");
 		code = http_response_code(&res->uri[HTTP_ACTION], 8);
-		/* TODO: return args as body */
+		res->body = res->uri[HTTP_ARGS];
 	}
 	/* redirect(code) - HTTP redirect */
 	else if (!iovstrncmp(&res->uri[HTTP_ACTION], "redirect", 8)) {
 		code = http_response_code(&res->uri[HTTP_ACTION], 8);
 		DEBUG("RESPONSE: redirect (%i)", code);
-		/* TODO: add redirect headers */
 		if ((code < HTTP_MOVED_PERMANENTLY) || (code > HTTP_SEE_OTHER))
 			return HTTP_INTERNAL_SERVER_ERROR;
-		/* FIXME: need to process this a bit */
 		iov_pushs(&res->head, "Location: ");
 		iov_pushv(&res->head, &res->uri[HTTP_ARGS]);
 	}
