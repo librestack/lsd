@@ -124,7 +124,7 @@ http_headers_read(char *buf, http_request_t *req, http_response_t *res)
 			return err;
 		ptr = crlf + 2;
 	}
-	return HTTP_OK;
+	return 0;
 }
 
 http_status_code_t
@@ -240,7 +240,7 @@ http_request_handle(http_request_t *req, http_response_t *res)
 	config_yield_free();
 	if (!found) return HTTP_NOT_FOUND;
 
-	return HTTP_OK;
+	return 0;
 }
 
 int http_response_code(struct iovec *uri, size_t len)
@@ -260,9 +260,20 @@ int http_response_code(struct iovec *uri, size_t len)
 }
 
 http_status_code_t
-http_response(http_request_t *req, http_response_t *res)
+http_response_static(int sock, http_request_t *req, http_response_t *res)
 {
-	http_status_code_t code = HTTP_OK;
+	(void)sock;
+	(void)req;
+	(void)res;
+	/* TODO TODO TODO TODO TODO TODO TODO TODO TODO */
+	return HTTP_NOT_IMPLEMENTED;
+}
+
+/* returning nonzero means the response has already been sent by the handler */
+http_status_code_t
+http_response(int sock, http_request_t *req, http_response_t *res)
+{
+	http_status_code_t code = 0;
 
 	/* response(code) - return status, with args as body */
 	if (!iovstrncmp(&res->uri[HTTP_ACTION], "response", 8)) {
@@ -282,13 +293,15 @@ http_response(http_request_t *req, http_response_t *res)
 	/* serve static file */
 	else if (!iovstrcmp(&res->uri[HTTP_ACTION], "static")) {
 		DEBUG("RESPONSE: static");
-		/* TODO */
+		code = http_response_static(sock, req, res);
 	}
 	else if (!iovstrcmp(&res->uri[HTTP_ACTION], "echo")) {
 		DEBUG("RESPONSE: echo");
 		iovset(&res->body, buf, req->len);
 		iov_pushs(&res->head, "Content-type: text-plain\r\n");
+		code = HTTP_OK;
 	}
+	else return HTTP_INTERNAL_SERVER_ERROR;
 	return code;
 }
 
@@ -297,14 +310,19 @@ int conn(int sock, proto_t *p)
 {
 	http_response_t res = {};
 	http_request_t req = {};
+	char status[128];
+	char clen[128];
 	int err = 0;
+
+	req.proto = p;
+	res.iovs.nmemb = IOVSIZE;
+	res.head.nmemb = IOVSIZE;
 
 	/* we need to do this here, so the env is created in this process
 	 * at init() time, the module is being called by the controller, and we
 	 * can't share the env from a different process */
 	env = NULL; config_init_db();
 
-	req.proto = p;
 	err = http_request_read(sock, &req, &res);
 
 	DEBUG("Host requested: %.*s", (int)req.host.iov_len,
@@ -313,38 +331,31 @@ int conn(int sock, proto_t *p)
 	DEBUG("Upsec: %i", req.upsec);
 	DEBUG("Close: %i", req.close);
 
-	if (err == HTTP_OK)
-		res.code = http_request_handle(&req, &res);
+	/* as soon as we have a code (err != 0), we are ready to respond */
+	if (!err) err = http_request_handle(&req, &res);
+	if (!err) err = http_response(sock, &req, &res);
+	if (err) {
+		/* status */
+		iov_push(&res.iovs, status, http_status(status, err));
 
-	/* prepare response */
-	if (err == HTTP_OK)
-		res.code = http_response(&req, &res);
+		/* headers */
+		iov_push(&res.iovs, clen,
+			sprintf(clen, "Content-Length: %zu\r\n", res.body.iov_len));
 
-	char status[128];
-	char clen[128];
-	res.iovs.nmemb = IOVSIZE;
-	res.head.nmemb = IOVSIZE;
+		/* push additional headers */
+		for (size_t i = 0; i < res.head.idx; i++) {
+			iov_pushv(&res.iovs, &res.head.iov[i]);
+		}
 
-	/* status */
-	iov_push(&res.iovs, status, http_status(status, res.code));
+		/* blank line */
+		iov_push(&res.iovs, "\r\n", 2);
 
-	/* headers */
-	iov_push(&res.iovs, clen,
-		sprintf(clen, "Content-Length: %zu\r\n", res.body.iov_len));
+		/* body */
+		if (res.body.iov_len)
+			iov_pushv(&res.iovs, &res.body);
 
-	/* push additional headers */
-	for (size_t i = 0; i < res.head.idx; i++) {
-		iov_pushv(&res.iovs, &res.head.iov[i]);
+		err = http_response_send(sock, &req, &res);
 	}
-
-	/* blank line */
-	iov_push(&res.iovs, "\r\n", 2);
-
-	/* body */
-	if (res.body.iov_len)
-		iov_pushv(&res.iovs, &res.body);
-
-	err = http_response_send(sock, &req, &res);
 	free(res.iovs.iov);
 	free(res.head.iov);
 	mdb_env_close(env); env = NULL;

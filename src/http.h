@@ -44,9 +44,10 @@ typedef enum {
 	HTTP_LENGTH_REQUIRED            = 411,
 	HTTP_UNSUPPORTED_MEDIA_TYPE     = 415,
 	HTTP_TEAPOT                     = 418,
+	HTTP_UNAVAILABLE_LEGAL		= 451,
 	HTTP_INTERNAL_SERVER_ERROR      = 500,
 	HTTP_NOT_IMPLEMENTED            = 501,
-	HTTP_VERSION_NOT_SUPPORTED      = 505
+	HTTP_VERSION_NOT_SUPPORTED      = 505,
 } http_status_code_t;
 
 typedef enum {
@@ -88,7 +89,6 @@ struct http_response_s {
 	iovstack_t head;		/* iovec header array */
 	struct iovec uri[HTTP_PARTS];	/* matched config uri */
 	struct iovec body;		/* Response body */
-	http_status_code_t code;        /* HTTP response code */
 	http_encoding_t encoding;	/* gzip, deflate etc. */
 };
 
