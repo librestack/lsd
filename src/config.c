@@ -73,7 +73,7 @@ int config_mime_load()
 	while (fgets(line, BUFSIZ, fd)) {
 		len = strlen(line) - 1;
 		if (line[0] == '#') continue;
-		line[len] = '0';
+		line[len] = '\0';
 		type = strtok(line, " \t");
 		v.mv_size = strlen(type);
 		v.mv_data = type;
