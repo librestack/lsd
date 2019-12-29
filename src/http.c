@@ -262,10 +262,52 @@ int http_response_code(struct iovec *uri, size_t len)
 	return code;
 }
 
+char *http_mimetype(char *ext)
+{
+	MDB_txn *txn;
+	MDB_dbi dbi;
+	MDB_val k,v;
+	char *mime = NULL;
+	int err = 0;
+
+	DEBUG("searching for mime type of '%s'", ext);
+	if (!ext) return NULL;
+	if ((err = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn)) != 0) {
+		ERROR("%s(): %s", __func__, mdb_strerror(err));
+		return NULL;
+	}
+	if ((err = mdb_dbi_open(txn, "mime", 0, &dbi)) != 0) {
+		ERROR("%s(): %s", __func__, mdb_strerror(err));
+	}
+	if (!err) {
+		k.mv_size = strlen(ext);
+		k.mv_data = ext;
+		if ((err = mdb_get(txn, dbi, &k, &v))) {
+			ERROR("%s(): %s", __func__, mdb_strerror(err));
+		}
+		else {
+			mime = strndup(v.mv_data, v.mv_size);
+		}
+	}
+	mdb_txn_abort(txn);
+	return mime;
+}
+
+char *fileext(char *filename)
+{
+	for (int i = strlen(filename) - 1; i >= 0; i--) {
+		if (filename[i] == '.') {
+			return filename + i + 1;
+		}
+	}
+	return NULL;
+}
+
 int http_sendfile(int sock, char *filename)
 {
 	struct stat sb;
 	char status[128];
+	char *mime;
 	ssize_t ret = 0;
 	int f;
 
@@ -282,8 +324,13 @@ int http_sendfile(int sock, char *filename)
 	setcork(sock, 1);
 	http_status(status, HTTP_OK);
 	dprintf(sock, "%s", status);
-	/* TODO: get mimetype */
-	dprintf(sock, "Content-Type: text/plain\r\n");
+	mime = http_mimetype(fileext(filename));
+	if (mime) {
+		dprintf(sock, "Content-Type: %s\r\n", mime);
+		free(mime);
+	}
+	else
+		dprintf(sock, "Content-Type: text/plain\r\n");
 	dprintf(sock, "Content-Length: %zu\r\n", sb.st_size);
 	write(sock, "\r\n", 2);
 	while ((ret = sendfile(sock, f, &ret, sb.st_size)) < sb.st_size) {

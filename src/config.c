@@ -43,6 +43,64 @@ module_t *mods;	/* dlopen handles for modules */
 int run = 0;
 char yield = 0; /* need to do cleanup call to config_yield() */
 
+/* process mime.types into database */
+int config_mime_load()
+{
+	MDB_txn *txn;
+	MDB_dbi dbi;
+	MDB_val k,v;
+	char line[BUFSIZ];
+	char *type, *ext;
+	size_t len;
+	size_t mimes = 0;
+	int err = 0;
+	FILE *fd;
+
+	if ((err = mdb_txn_begin(env, NULL, 0, &txn)) != 0)
+		FAILMSG(LSD_ERROR_DB, "%s(): %s", __func__, mdb_strerror(err));
+
+	if ((err = mdb_dbi_open(txn, "mime", MDB_CREATE, &dbi)) != 0) {
+		ERROR("%s(): %s", __func__, mdb_strerror(err));
+		mdb_txn_abort(txn);
+		return LSD_ERROR_DB;
+	}
+	fd = fopen("/home/bacs/dev/lsd/src/mime.types", "r"); /* FIXME */
+	if (!fd) {
+		ERROR("unable to open mime.types");
+		mdb_txn_abort(txn);
+		return LSD_ERROR_CONFIG_READ;
+	}
+	while (fgets(line, BUFSIZ, fd)) {
+		len = strlen(line) - 1;
+		if (line[0] == '#') continue;
+		line[len] = '0';
+		type = strtok(line, " \t");
+		v.mv_size = strlen(type);
+		v.mv_data = type;
+		while ((ext = strtok(NULL, " \t"))) {
+			k.mv_size = strlen(ext);
+			k.mv_data = ext;
+			if ((err = mdb_put(txn, dbi, &k, &v, 0))) {
+				ERROR("%s(): %s", __func__, mdb_strerror(err));
+				break;
+			}
+		}
+		if (err) break;
+		mimes++;
+	}
+	fclose(fd);
+	if (err) {
+		mdb_txn_abort(txn);
+		DEBUG("mime processing aborted");
+	}
+	else {
+		mdb_txn_commit(txn);
+		DEBUG("loaded %zu mime types", mimes);
+	}
+
+	return err;
+}
+
 char * config_db(char db, char name[2])
 {
 	TRACE("%s()", __func__);
@@ -432,7 +490,7 @@ int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 
 	ptr = strchr(line, ':');
 	len = (size_t)(ptr-line);
-	loglevel = 127;
+	loglevel = 127; /* FIXME */
 	DEBUG("uri proto: %.*s", len, line);
 
 	/* find or load module for this uri */
@@ -1068,8 +1126,8 @@ int config_init(int argc, char **argv)
 		}
 	}
 
-	/* initialize lmdb */
-	config_init_db();
+	config_init_db();	/* initialize lmdb */
+	config_mime_load();	/* load mime.types */
 
 	/* wrap config write in single transaction */
 	if ((err = mdb_txn_begin(env, NULL, 0, &txn)) != 0)
