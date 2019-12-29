@@ -26,9 +26,12 @@
 #include "iov.h"
 #include "log.h"
 #include <ctype.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/sendfile.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <netinet/tcp.h>
 #include <sys/uio.h>
@@ -259,14 +262,93 @@ int http_response_code(struct iovec *uri, size_t len)
 	return code;
 }
 
+int http_sendfile(int sock, char *filename)
+{
+	struct stat sb;
+	char status[128];
+	ssize_t ret = 0;
+	int f;
+
+	if ((f = open(filename, O_RDONLY)) == -1) {
+		ERROR("unable to open '%s': %s\n", filename, strerror(errno));
+		return HTTP_NOT_FOUND;
+	}
+	fstat(f, &sb);
+	if (! S_ISREG(sb.st_mode)) {
+		ERROR("'%s' is not a regular file", filename);
+		return HTTP_NOT_FOUND;
+	}
+	DEBUG("Sending %zu bytes", sb.st_size);
+	setcork(sock, 1);
+	http_status(status, HTTP_OK);
+	dprintf(sock, "%s", status);
+	/* TODO: get mimetype */
+	dprintf(sock, "Content-Type: text/plain\r\n");
+	dprintf(sock, "Content-Length: %zu\r\n", sb.st_size);
+	write(sock, "\r\n", 2);
+	while ((ret = sendfile(sock, f, &ret, sb.st_size)) < sb.st_size) {
+		if (ret == -1) {
+			ERROR("error sending file '%s': %s", filename, strerror(errno));
+			break;
+		}
+	}
+	if (ret != -1) setcork(sock, 0);
+
+	return ret;
+}
+
 http_status_code_t
 http_response_static(int sock, http_request_t *req, http_response_t *res)
 {
-	(void)sock;
-	(void)req;
-	(void)res;
-	/* TODO TODO TODO TODO TODO TODO TODO TODO TODO */
-	return HTTP_NOT_IMPLEMENTED;
+	char *filename = NULL;
+	char *ptr;
+	size_t len;
+	int err = 0;
+
+	/* config missing args */
+	if (!res->uri[HTTP_ARGS].iov_len) return HTTP_INTERNAL_SERVER_ERROR;
+
+	DEBUG("requested: '%.*s'", req->uri.iov_len, req->uri.iov_base);
+	DEBUG("compareto: '%.*s'", res->uri[HTTP_PATH].iov_len, res->uri[HTTP_PATH].iov_base);
+	if (!iovcmp(&req->uri, &res->uri[HTTP_PATH])) {
+		/* exact match */
+		DEBUG("exact match: '%.*s'", req->uri.iov_len, req->uri.iov_base);
+		iovsetstr(&res->body, "exact match\r\n");
+		if (iovidx(res->uri[HTTP_ARGS], -1) == '/') /* directory */
+			return HTTP_INTERNAL_SERVER_ERROR;
+		filename = iovdup(&res->uri[HTTP_ARGS]);
+	}
+	else if (!iovmatch(&res->uri[HTTP_PATH], &req->uri, 0)) {
+		/* wildcard match */
+		DEBUG("wildcard match: '%.*s'", req->uri.iov_len, req->uri.iov_base);
+		iovsetstr(&res->body, "wildcard match\r\n");
+		if (iovidx(res->uri[HTTP_ARGS], -1) != '/') {
+			/* wildcard, but path points to file. Just serve the file */
+			filename = iovdup(&res->uri[HTTP_ARGS]);
+			goto sendnow;
+		}
+		/* concatenate path and filename */
+		ptr = iovrchr(req->uri, '/', &len);
+		len = req->uri.iov_len - len - 1;
+		if (!ptr) return HTTP_NOT_FOUND;
+		++ptr;
+		len = snprintf(NULL, 0, "%.*s%.*s",
+			(int)res->uri[HTTP_ARGS].iov_len, (char *)res->uri[HTTP_ARGS].iov_base,
+			(int)len, ptr);
+		filename = malloc(len + 1);
+		snprintf(filename, len + 1, "%.*s%.*s",
+			(int)res->uri[HTTP_ARGS].iov_len, (char *)res->uri[HTTP_ARGS].iov_base,
+			(int)len, ptr);
+	}
+	else return HTTP_NOT_FOUND;
+	if (filename) {
+sendnow:
+		DEBUG("sending file '%s'", filename);
+		err = http_sendfile(sock, filename);
+		free(filename);
+	}
+
+	return err;
 }
 
 /* returning nonzero means the response has already been sent by the handler */

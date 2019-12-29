@@ -65,9 +65,46 @@ struct iovec *iovset(struct iovec *iov, void *base, size_t len)
 	return iov;
 }
 
+struct iovec *iovsetstr(struct iovec *iov, char *str)
+{
+	return iovset(iov, str, strlen(str));
+}
+
+void *iovchr(struct iovec iov, int c)
+{
+	return (memchr(iov.iov_base, c, iov.iov_len));
+}
+
+void *iovrchr(struct iovec iov, int c, size_t *len)
+{
+	for (int i = -1; (int)(*len = (i + iov.iov_len)) >= 0; i--) {
+		fprintf(stderr, "length = %zu\n", *len);
+		if (iovidx(iov, i) == c) {
+			return iov.iov_base + *len;
+		}
+	}
+	return NULL;
+}
+
 struct iovec *iovcpy(struct iovec *dst, struct iovec *src)
 {
 	return iovset(dst, src->iov_base, src->iov_len);
+}
+
+char *iovdup(struct iovec *iov)
+{
+	return strndup(iov->iov_base, iov->iov_len);
+}
+
+char iovidx(struct iovec iov, int off)
+{
+	if (abs(off) > iov.iov_len) {
+		errno = EINVAL;
+		return 0;
+	}
+	if (off >= 0)
+		return ((char *)iov.iov_base)[off];
+	return ((char *)iov.iov_base)[iov.iov_len + off];
 }
 
 int iov_push(iovstack_t *iovs, void *base, size_t len)
