@@ -283,7 +283,8 @@ char *http_mimetype(char *ext)
 		k.mv_size = strlen(ext);
 		k.mv_data = ext;
 		if ((err = mdb_get(txn, dbi, &k, &v))) {
-			ERROR("%s(): %s", __func__, mdb_strerror(err));
+			if (err != MDB_NOTFOUND)
+				ERROR("%s(): %s", __func__, mdb_strerror(err));
 		}
 		else {
 			mime = strndup(v.mv_data, v.mv_size);
