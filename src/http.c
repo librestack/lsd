@@ -81,7 +81,6 @@ size_t skipspace(char **ptr, size_t i, size_t maxlen)
 int http_header_process(http_request_t *req, http_response_t *res,
 			struct iovec *k, struct iovec *v)
 {
-	(void) req; /* FIXME - unused */
 	(void) res; /* FIXME - unused */
 	if (!iovstrcmp(k, "Host")) {
 		iovcpy(&req->host, v);
@@ -171,10 +170,9 @@ http_request_read(int sock, http_request_t *req, http_response_t *res)
 int http_response_send(int sock, http_request_t *req, http_response_t *res)
 {
 	(void) req; /* FIXME - unused */
-	(void) res; /* FIXME - unused */
 
 	setcork(sock, 1);
-	writev(sock, res->iovs.iov, res->iovs.idx);
+	writev(sock, res->iovs.iov, res->iovs.idx); /* TODO: check errors */
 	setcork(sock, 0);
 	return 0;
 }
@@ -270,8 +268,8 @@ char *http_mimetype(char *ext)
 	char *mime = NULL;
 	int err = 0;
 
-	DEBUG("searching for mime type of '%s'", ext);
 	if (!ext) return NULL;
+	DEBUG("searching for mime type of '%s'", ext);
 	if ((err = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn)) != 0) {
 		ERROR("%s(): %s", __func__, mdb_strerror(err));
 		return NULL;
@@ -361,7 +359,6 @@ http_response_static(int sock, http_request_t *req, http_response_t *res)
 	if (!iovcmp(&req->uri, &res->uri[HTTP_PATH])) {
 		/* exact match */
 		DEBUG("exact match: '%.*s'", req->uri.iov_len, req->uri.iov_base);
-		iovsetstr(&res->body, "exact match\r\n");
 		if (iovidx(res->uri[HTTP_ARGS], -1) == '/') /* directory */
 			return HTTP_INTERNAL_SERVER_ERROR;
 		filename = iovdup(&res->uri[HTTP_ARGS]);
@@ -369,7 +366,6 @@ http_response_static(int sock, http_request_t *req, http_response_t *res)
 	else if (!iovmatch(&res->uri[HTTP_PATH], &req->uri, 0)) {
 		/* wildcard match */
 		DEBUG("wildcard match: '%.*s'", req->uri.iov_len, req->uri.iov_base);
-		iovsetstr(&res->body, "wildcard match\r\n");
 		if (iovidx(res->uri[HTTP_ARGS], -1) != '/') {
 			/* wildcard, but path points to file. Just serve the file */
 			filename = iovdup(&res->uri[HTTP_ARGS]);
@@ -435,6 +431,11 @@ http_response(int sock, http_request_t *req, http_response_t *res)
 	return code;
 }
 
+int http_ready(int sock)
+{
+	return (recv(sock, buf, 1, MSG_PEEK | MSG_WAITALL) > 0);
+}
+
 /* Handle new connection */
 int conn(int sock, proto_t *p)
 {
@@ -452,42 +453,30 @@ int conn(int sock, proto_t *p)
 	 * at init() time, the module is being called by the controller, and we
 	 * can't share the env from a different process */
 	env = NULL; config_init_db();
-
-	err = http_request_read(sock, &req, &res);
-
-	DEBUG("Host requested: %.*s", (int)req.host.iov_len,
-				   (char *)req.host.iov_base);
-
-	DEBUG("Upsec: %i", req.upsec);
-	DEBUG("Close: %i", req.close);
-
-	/* as soon as we have a code (err != 0), we are ready to respond */
-	if (!err) err = http_request_handle(&req, &res);
-	if (!err) err = http_response(sock, &req, &res);
-	if (err) {
-		/* status */
-		iov_push(&res.iovs, status, http_status(status, err));
-
-		/* headers */
-		iov_push(&res.iovs, clen,
-			sprintf(clen, "Content-Length: %zu\r\n", res.body.iov_len));
-
-		/* push additional headers */
-		for (size_t i = 0; i < res.head.idx; i++) {
-			iov_pushv(&res.iovs, &res.head.iov[i]);
+	while (!req.close && http_ready(sock)) {
+		err = http_request_read(sock, &req, &res);
+		if (!err) err = http_request_handle(&req, &res);
+		if (!err) err = http_response(sock, &req, &res);
+		if (err) {
+			iov_push(&res.iovs, status, http_status(status, err));
+			iov_push(&res.iovs, clen,
+			    sprintf(clen, "Content-Length: %zu\r\n",
+			            res.body.iov_len)
+			);
+			for (size_t i = 0; i < res.head.idx; i++) {
+				iov_pushv(&res.iovs, &res.head.iov[i]);
+			}
+			iov_push(&res.iovs, "\r\n", 2);
+			if (res.body.iov_len) iov_pushv(&res.iovs, &res.body);
+			err = http_response_send(sock, &req, &res);
 		}
-
-		/* blank line */
-		iov_push(&res.iovs, "\r\n", 2);
-
-		/* body */
-		if (res.body.iov_len)
-			iov_pushv(&res.iovs, &res.body);
-
-		err = http_response_send(sock, &req, &res);
+		iovs_clear(&res.iovs);
+		iovs_clear(&res.head);
+		DEBUG("request finished");
+		DEBUG("req.close=%i", req.close);
 	}
-	free(res.iovs.iov);
-	free(res.head.iov);
+	iovs_free(&res.iovs);
+	iovs_free(&res.head);
 	mdb_env_close(env); env = NULL;
 
 	return err;

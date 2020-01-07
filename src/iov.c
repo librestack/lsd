@@ -129,3 +129,13 @@ int iov_pushv(iovstack_t *iovs, struct iovec *iov)
 {
 	return iov_push(iovs, iov->iov_base, iov->iov_len);
 }
+
+void iovs_clear(iovstack_t *iovs)
+{
+	iovs->idx = 0;
+}
+
+void iovs_free(iovstack_t *iovs)
+{
+	free(iovs->iov);
+}
