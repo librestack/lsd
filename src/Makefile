@@ -21,7 +21,7 @@
 
 COMMON_OBJECTS:=config.o db.o err.o iov.o log.o str.o
 OBJECTS:=$(PROGRAM).o handler.o $(COMMON_OBJECTS)
-MODULES:=echo.so http.so
+MODULES:=echo.so http.so https.so
 
 CFLAGS += -fPIC
 
@@ -42,6 +42,9 @@ echo.so:	echo.o $(COMMON_OBJECTS)
 http.so:	http.o $(COMMON_OBJECTS)
 		$(CC) -shared -fPIC -o $@  $^ -lwolfssl
 
+https.so:	http.so
+		ln -s http.so https.so
+
 echo.o:		echo.c
 
 http.o:		http.c http.h
@@ -61,4 +64,4 @@ iov.o:		iov.c iov.h
 str.o:		str.c str.h
 
 clean:
-		rm -f *.o $(PROGRAM)
+		rm -f *.o $(PROGRAM) $(MODULES)
