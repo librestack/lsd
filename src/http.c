@@ -121,7 +121,8 @@ http_request_read(int sock, http_request_t *req, http_response_t *res)
 
 	if (res->ssl) {
 		if ((len = wolfSSL_read(res->ssl, buf, BUFSIZ-1)) < 0) {
-			FAIL(LSD_ERROR_TLS_READ);
+			req->close = 1;
+			return HTTP_BAD_REQUEST;
 		}
 		req->len = (size_t)len;
 	}
