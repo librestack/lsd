@@ -4,7 +4,7 @@
  *
  * this file is part of LIBRESTACK
  *
- * Copyright (c) 2012-2019 Brett Sheffield <bacs@librecast.net>
+ * Copyright (c) 2012-2020 Brett Sheffield <bacs@librecast.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "http.h"
 #include "iov.h"
 #include "log.h"
+#include "str.h"
 #include <ctype.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -51,24 +52,6 @@ size_t http_status(char *status, http_status_code_t code)
 {
 	/* TODO: actually look up codes */
 	return sprintf(status, "HTTP/1.1 %i - Some Status Here\r\n", code);
-}
-
-/* advance ptr to end of word, return length */
-size_t wordend(char **ptr, size_t ptrmax, size_t maxlen)
-{
-	size_t i;
-	maxlen = (ptrmax < maxlen) ? ptrmax : maxlen; /* lowest limit */
-	for (i = 0; i < maxlen && !isspace((*ptr)[i]); i++);
-	return i;
-}
-
-/* advance ptr to next word, return offset */
-size_t skipspace(char **ptr, size_t i, size_t maxlen)
-{
-	*ptr += i;
-	for (i = 0; i < maxlen && isblank((*ptr)[i]); i++);
-	*ptr += i;
-	return i;
 }
 
 /*
@@ -133,9 +116,18 @@ http_status_code_t
 http_request_read(int sock, http_request_t *req, http_response_t *res)
 {
 	size_t i;
+	ssize_t len;
 	char *ptr;
 
-	req->len = recv(sock, buf, BUFSIZ, 0);
+	if (res->ssl) {
+		if ((len = wolfSSL_read(res->ssl, buf, BUFSIZ-1)) < 0) {
+			FAIL(LSD_ERROR_TLS_READ);
+		}
+		req->len = (size_t)len;
+	}
+	else {
+		req->len = recv(sock, buf, BUFSIZ, 0);
+	}
 	ptr = buf;
 
 	i = wordend(&ptr, HTTP_METHOD_MAX, req->len);	/* HTTP method */
@@ -172,7 +164,14 @@ int http_response_send(int sock, http_request_t *req, http_response_t *res)
 	(void) req; /* FIXME - unused */
 
 	setcork(sock, 1);
-	writev(sock, res->iovs.iov, res->iovs.idx); /* TODO: check errors */
+	if (res->ssl) {
+		if (!wolfSSL_writev(res->ssl, res->iovs.iov, res->iovs.idx)) {
+			FAIL(LSD_ERROR_TLS_WRITE);
+		}
+	}
+	else {
+		writev(sock, res->iovs.iov, res->iovs.idx); /* TODO: check errors */
+	}
 	setcork(sock, 0);
 	return 0;
 }
@@ -444,6 +443,7 @@ int conn(int sock, proto_t *p)
 	char status[128];
 	char clen[128];
 	int err = 0;
+	WOLFSSL_CTX *ctx = NULL;
 
 	req.proto = p;
 	res.iovs.nmemb = IOVSIZE;
@@ -453,6 +453,33 @@ int conn(int sock, proto_t *p)
 	 * at init() time, the module is being called by the controller, and we
 	 * can't share the env from a different process */
 	env = NULL; config_init_db();
+
+	/* handle TLS connection */
+	if (!strcmp(p->module, "https")) {
+		/* Initialize wolfSSL */
+		wolfSSL_Init();
+		if ((ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method())) == NULL) {
+			ERROR("failed to create WOLFSSL_CTX");
+			goto conn_cleanup;
+		}
+		/* load certificate */
+		if (wolfSSL_CTX_use_certificate_file(ctx, CERT_FILE, SSL_FILETYPE_PEM) != SSL_SUCCESS) {
+			ERROR("failed to load %s", CERT_FILE);
+			goto conn_cleanup;
+		}
+		/* load private key */
+		if (wolfSSL_CTX_use_PrivateKey_file(ctx, KEY_FILE, SSL_FILETYPE_PEM) != SSL_SUCCESS) {
+			ERROR("failed to load %s", KEY_FILE);
+			goto conn_cleanup;
+		}
+		/* create new session */
+		if ((res.ssl = wolfSSL_new(ctx)) == NULL) {
+			ERROR("failed to create WOLFSSL object");
+			goto conn_cleanup;
+		}
+		wolfSSL_set_fd(res.ssl, sock);
+	}
+
 	while (!req.close && http_ready(sock)) {
 		err = http_request_read(sock, &req, &res);
 		if (!err) err = http_request_handle(&req, &res);
@@ -475,9 +502,16 @@ int conn(int sock, proto_t *p)
 		DEBUG("request finished");
 		DEBUG("req.close=%i", req.close);
 	}
+conn_cleanup:
 	iovs_free(&res.iovs);
 	iovs_free(&res.head);
 	mdb_env_close(env); env = NULL;
+
+	if (!strcmp(p->module, "https")) {
+		if (res.ssl) wolfSSL_free(res.ssl);
+		if (ctx) wolfSSL_CTX_free(ctx);
+		wolfSSL_Cleanup();
+	}
 
 	return err;
 }

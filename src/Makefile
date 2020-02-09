@@ -2,7 +2,7 @@
 #
 # this file is part of LIBRESTACK
 #
-# Copyright (c) 2012-2019 Brett Sheffield <bacs@librecast.net>
+# Copyright (c) 2012-2020 Brett Sheffield <bacs@librecast.net>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 
-COMMON_OBJECTS:=config.o db.o err.o iov.o log.o
+COMMON_OBJECTS:=config.o db.o err.o iov.o log.o str.o
 OBJECTS:=$(PROGRAM).o handler.o $(COMMON_OBJECTS)
 MODULES:=echo.so http.so
 
@@ -40,7 +40,7 @@ echo.so:	echo.o $(COMMON_OBJECTS)
 		$(CC) -shared -fPIC -o $@  $^
 
 http.so:	http.o $(COMMON_OBJECTS)
-		$(CC) -shared -fPIC -o $@  $^
+		$(CC) -shared -fPIC -o $@  $^ -lwolfssl
 
 echo.o:		echo.c
 

@@ -4,7 +4,7 @@
  *
  * this file is part of LIBRESTACK
  *
- * Copyright (c) 2012-2019 Brett Sheffield <bacs@librecast.net>
+ * Copyright (c) 2012-2020 Brett Sheffield <bacs@librecast.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,8 +21,13 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define WC_NO_HARDEN /* FIXME: stop wolfssl warning */
+#define CERT_FILE "server-cert.pem" /* FIXME */
+#define KEY_FILE  "server-key.pem"  /* FIXME */
+
 #include "config.h"
 #include "iov.h"
+#include <wolfssl/ssl.h>
 
 #define HTTP_DB_URI "http_uri"
 #define HTTP_METHOD_MAX 8	/* maximum length of HTTP method */
@@ -85,6 +90,7 @@ struct http_request_s {
 
 typedef struct http_response_s http_response_t;
 struct http_response_s {
+	WOLFSSL *ssl;			/* WOLFSSL object */
 	iovstack_t iovs;		/* iovec response array */
 	iovstack_t head;		/* iovec header array */
 	struct iovec uri[HTTP_PARTS];	/* matched config uri */

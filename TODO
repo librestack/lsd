@@ -1,6 +1,1 @@
-config from command shell. eg.:
-lsd> config
-lsd config> loglevel 63
-lsd config> save
-config saved
-lsd> quit
+Load TLS cert and key from config

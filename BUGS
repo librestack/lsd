@@ -1,0 +1,8 @@
+SIGINT at the terminal kills handlers and controller in random order, often
+causing the controller to start more handlers until it received SIGINT.
+
+an invalid config proto line with trailing garbage causes handler crashes. eg:
+proto   http    8444 #
+
+debug mode not working inside modules
+

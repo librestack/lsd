@@ -39,7 +39,9 @@
 	X(LSD_ERROR_GETADDRINFO,	"Unable to translate address") \
 	X(LSD_ERROR_NOHANDLER,		"No handler found") \
 	X(LSD_ERROR_LOAD_MODULE,	"Unable to load module") \
-	X(LSD_ERROR_DB,			"Database error")
+	X(LSD_ERROR_DB,			"Database error") \
+	X(LSD_ERROR_TLS_READ,		"TLS read error") \
+	X(LSD_ERROR_TLS_WRITE,		"TLS write error")
 #undef X
 
 #define LSD_ERROR_MSG(name, msg) case name: return msg;

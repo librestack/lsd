@@ -69,6 +69,7 @@ int handle_connection(int idx, int sock)
 		p = (proto_t *)val.mv_data;
 		mod = (module_t *)config_module(p->module, strlen(p->module));
 		if (!mod) goto handle_connection_err;
+		/* TODO: check module TLS settings */
 		int (* conn)(int, proto_t*);
 		conn = dlsym(mod->ptr, "conn");
 		if (conn) {
