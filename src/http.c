@@ -530,7 +530,6 @@ int conn(int sock, proto_t *p)
 			}
 			iov_push(&res.iovs, "\r\n", 2);
 			if (res.body.iov_len) iov_pushv(&res.iovs, &res.body);
-			iov_push(&res.iovs, "\r\n", 2);
 			err = http_response_send(sock, &req, &res);
 		}
 		iovs_clear(&res.iovs);
