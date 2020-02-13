@@ -347,7 +347,6 @@ int http_sendfile(int sock, char *filename, http_response_t *res)
 			ERRMSG(LSD_ERROR_TLS_WRITE);
 			ret =  HTTP_INTERNAL_SERVER_ERROR;
 		}
-		DEBUG("hi there");
 	}
 	else {
 		writev(sock, res->iovs.iov, res->iovs.idx); /* TODO: check errors */
