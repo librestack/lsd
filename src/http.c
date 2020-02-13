@@ -304,7 +304,7 @@ char *fileext(char *filename)
 	return NULL;
 }
 
-int http_sendfile(int sock, char *filename, http_response_t *res)
+int http_sendfile(int sock, char *filename, http_request_t *req, http_response_t *res)
 {
 	struct stat sb;
 	char status[128];
@@ -345,20 +345,26 @@ int http_sendfile(int sock, char *filename, http_response_t *res)
 		iov_push(&res->iovs, map, sb.st_size);
 		if (!wolfSSL_writev(res->ssl, res->iovs.iov, res->iovs.idx)) {
 			ERRMSG(LSD_ERROR_TLS_WRITE);
-			ret =  HTTP_INTERNAL_SERVER_ERROR;
+			req->close = 1;
 		}
+		setcork(sock, 0);
 	}
 	else {
-		writev(sock, res->iovs.iov, res->iovs.idx); /* TODO: check errors */
+		if (writev(sock, res->iovs.iov, res->iovs.idx) == -1) {
+			ERROR("error writing headers");
+			req->close = 1;
+			goto http_sendfile_free;
+		}
 		while ((ret = sendfile(sock, f, &ret, sb.st_size)) < sb.st_size) {
 			if (ret == -1) {
 				ERROR("error sending file '%s': %s", filename, strerror(errno));
+				req->close = 1;
 				break;
 			}
 		}
+		setcork(sock, 0);
 	}
-	if (ret != -1) setcork(sock, 0);
-
+http_sendfile_free:
 	if (map) munmap(map, sb.st_size);
 	close(f);
 	free(clen);
@@ -414,7 +420,7 @@ http_response_static(int sock, http_request_t *req, http_response_t *res)
 	if (filename) {
 sendnow:
 		DEBUG("sending file '%s'", filename);
-		err = http_sendfile(sock, filename, res);
+		err = http_sendfile(sock, filename, req, res);
 		free(filename);
 	}
 
