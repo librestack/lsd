@@ -33,6 +33,7 @@
 #define HTTP_METHOD_MAX 8	/* maximum length of HTTP method */
 #define HTTP_URI_MAX 4096	/* maximum length of HTTP uri */
 #define HTTP_VERSION_MAX 9	/* maximum length of HTTP uri */
+#define CRLF "\r\n"
 
 typedef enum {
 	HTTP_SWITCHING_PROTOCOLS        = 101,

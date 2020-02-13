@@ -397,23 +397,24 @@ http_response_static(int sock, http_request_t *req, http_response_t *res)
 	else if (!iovmatch(&res->uri[HTTP_PATH], &req->uri, 0)) {
 		/* wildcard match */
 		DEBUG("wildcard match: '%.*s'", req->uri.iov_len, req->uri.iov_base);
-		/* TODO: wildcard match & path is a directory, append trailing chars */
 		if (iovidx(res->uri[HTTP_ARGS], -1) != '/') {
 			/* wildcard, but path points to file. Just serve the file */
 			filename = iovdup(&res->uri[HTTP_ARGS]);
 			goto sendnow;
 		}
-		/* concatenate path and filename */
+		/* wildcard match & path is a directory, append filename */
 		ptr = iovrchr(req->uri, '/', &len);
 		len = req->uri.iov_len - len - 1;
 		if (!ptr) return HTTP_NOT_FOUND;
 		++ptr;
 		len = snprintf(NULL, 0, "%.*s%.*s",
-			(int)res->uri[HTTP_ARGS].iov_len, (char *)res->uri[HTTP_ARGS].iov_base,
+			(int)res->uri[HTTP_ARGS].iov_len,
+			(char *)res->uri[HTTP_ARGS].iov_base,
 			(int)len, ptr);
 		filename = malloc(len + 1);
 		snprintf(filename, len + 1, "%.*s%.*s",
-			(int)res->uri[HTTP_ARGS].iov_len, (char *)res->uri[HTTP_ARGS].iov_base,
+			(int)res->uri[HTTP_ARGS].iov_len,
+			(char *)res->uri[HTTP_ARGS].iov_base,
 			(int)len, ptr);
 	}
 	else return HTTP_NOT_FOUND;
@@ -432,8 +433,8 @@ http_status_code_t
 http_response(int sock, http_request_t *req, http_response_t *res)
 {
 	http_status_code_t code = 0;
-
-	/* response(code) - return status, with args as body */
+	char *ptr;
+	size_t len;
 	if (!iovstrncmp(&res->uri[HTTP_ACTION], "response", 8)) {
 		DEBUG("RESPONSE: response");
 		code = http_response_code(&res->uri[HTTP_ACTION], 8);
@@ -446,7 +447,20 @@ http_response(int sock, http_request_t *req, http_response_t *res)
 		if ((code < HTTP_MOVED_PERMANENTLY) || (code > HTTP_SEE_OTHER))
 			return HTTP_INTERNAL_SERVER_ERROR;
 		iov_pushs(&res->head, "Location: ");
-		iov_pushv(&res->head, &res->uri[HTTP_ARGS]);
+		if (iovidx(res->uri[HTTP_PATH], -1) == '*') {
+			/* wildcard: append request path to redirect url */
+			iov_push(&res->head, res->uri[HTTP_ARGS].iov_base,
+				             res->uri[HTTP_ARGS].iov_len);
+			ptr = iovchr(req->uri, '/');
+			if (!ptr) return HTTP_BAD_REQUEST;
+			ptr++;
+			len = req->uri.iov_len + ptr - (char *)req->uri.iov_base - 1;
+			iov_push(&res->head, ptr, len);
+		}
+		else {
+			iov_pushv(&res->head, &res->uri[HTTP_ARGS]);
+		}
+		iov_push(&res->head, CRLF, 2);
 	}
 	/* serve static file */
 	else if (!iovstrcmp(&res->uri[HTTP_ACTION], "static")) {
@@ -528,7 +542,7 @@ int conn(int sock, proto_t *p)
 			for (size_t i = 0; i < res.head.idx; i++) {
 				iov_pushv(&res.iovs, &res.head.iov[i]);
 			}
-			iov_push(&res.iovs, "\r\n", 2);
+			iov_push(&res.iovs, CRLF, 2);
 			if (res.body.iov_len) iov_pushv(&res.iovs, &res.body);
 			err = http_response_send(sock, &req, &res);
 		}
