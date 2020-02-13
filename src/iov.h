@@ -46,6 +46,7 @@ char iovidx(struct iovec iov, int off);
 struct iovec *iovset(struct iovec *iov, void *base, size_t len);
 struct iovec *iovsetstr(struct iovec *iov, char *str);
 int iov_push(iovstack_t *iovs, void *base, size_t len);
+int iov_pushf(iovstack_t *iovs, char *str, char *fmt, ...);
 int iov_pushs(iovstack_t *iovs, char *str);
 int iov_pushv(iovstack_t *iovs, struct iovec *iov);
 void iovs_clear(iovstack_t *iovs);

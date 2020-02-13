@@ -26,10 +26,12 @@
 #include "iov.h"
 #include "log.h"
 #include "str.h"
+#include <assert.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/sendfile.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -302,11 +304,14 @@ char *fileext(char *filename)
 	return NULL;
 }
 
-int http_sendfile(int sock, char *filename)
+int http_sendfile(int sock, char *filename, http_response_t *res)
 {
 	struct stat sb;
 	char status[128];
-	char *mime;
+	char *clen = NULL;
+	char *ctyp = NULL;
+	char *mime = NULL;
+	char *map = NULL;
 	ssize_t ret = 0;
 	int f;
 
@@ -321,24 +326,45 @@ int http_sendfile(int sock, char *filename)
 	}
 	DEBUG("Sending %zu bytes", sb.st_size);
 	setcork(sock, 1);
-	http_status(status, HTTP_OK);
-	dprintf(sock, "%s", status);
+	iov_push(&res->iovs, status, http_status(status, HTTP_OK));
 	mime = http_mimetype(fileext(filename));
-	if (mime) {
-		dprintf(sock, "Content-Type: %s\r\n", mime);
-		free(mime);
-	}
+	if (mime)
+		iov_pushf(&res->iovs, ctyp, "Content-Type: %s\r\n", mime);
 	else
-		dprintf(sock, "Content-Type: text/plain\r\n");
-	dprintf(sock, "Content-Length: %zu\r\n", sb.st_size);
-	write(sock, "\r\n", 2);
-	while ((ret = sendfile(sock, f, &ret, sb.st_size)) < sb.st_size) {
-		if (ret == -1) {
-			ERROR("error sending file '%s': %s", filename, strerror(errno));
-			break;
+		iov_pushs(&res->iovs, "Content-Type: text/plain\r\n");
+	iov_pushf(&res->iovs, clen, "Content-Length: %zu\r\n", sb.st_size);
+	iov_pushs(&res->iovs, "\r\n");
+
+	if (res->ssl) {
+		DEBUG("TLS ENABLED");
+
+		/* FIXME: wolfssl casts size_t to int, imposing a 2GB filesize limit */
+		assert(sb.st_size <= INT_MAX);
+
+		map = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, f, 0);
+		iov_push(&res->iovs, map, sb.st_size);
+		if (!wolfSSL_writev(res->ssl, res->iovs.iov, res->iovs.idx)) {
+			ERRMSG(LSD_ERROR_TLS_WRITE);
+			ret =  HTTP_INTERNAL_SERVER_ERROR;
+		}
+		DEBUG("hi there");
+	}
+	else {
+		writev(sock, res->iovs.iov, res->iovs.idx); /* TODO: check errors */
+		while ((ret = sendfile(sock, f, &ret, sb.st_size)) < sb.st_size) {
+			if (ret == -1) {
+				ERROR("error sending file '%s': %s", filename, strerror(errno));
+				break;
+			}
 		}
 	}
 	if (ret != -1) setcork(sock, 0);
+
+	if (map) munmap(map, sb.st_size);
+	close(f);
+	free(clen);
+	free(ctyp);
+	free(mime);
 
 	return ret;
 }
@@ -366,6 +392,7 @@ http_response_static(int sock, http_request_t *req, http_response_t *res)
 	else if (!iovmatch(&res->uri[HTTP_PATH], &req->uri, 0)) {
 		/* wildcard match */
 		DEBUG("wildcard match: '%.*s'", req->uri.iov_len, req->uri.iov_base);
+		/* TODO: wildcard match & path is a directory, append trailing chars */
 		if (iovidx(res->uri[HTTP_ARGS], -1) != '/') {
 			/* wildcard, but path points to file. Just serve the file */
 			filename = iovdup(&res->uri[HTTP_ARGS]);
@@ -388,7 +415,7 @@ http_response_static(int sock, http_request_t *req, http_response_t *res)
 	if (filename) {
 sendnow:
 		DEBUG("sending file '%s'", filename);
-		err = http_sendfile(sock, filename);
+		err = http_sendfile(sock, filename, res);
 		free(filename);
 	}
 
@@ -446,6 +473,8 @@ int conn(int sock, proto_t *p)
 	int err = 0;
 	WOLFSSL_CTX *ctx = NULL;
 
+	loglevel = 127; /* FIXME - remove */
+
 	req.proto = p;
 	res.iovs.nmemb = IOVSIZE;
 	res.head.nmemb = IOVSIZE;
@@ -496,6 +525,7 @@ int conn(int sock, proto_t *p)
 			}
 			iov_push(&res.iovs, "\r\n", 2);
 			if (res.body.iov_len) iov_pushv(&res.iovs, &res.body);
+			iov_push(&res.iovs, "\r\n", 2);
 			err = http_response_send(sock, &req, &res);
 		}
 		iovs_clear(&res.iovs);
@@ -548,7 +578,7 @@ int load_uri(char *line, MDB_txn *txn)
 
 	memset(pack, 0, sizeof(pack));
 
-	loglevel = 79; /* FIXME - remove */
+	loglevel = 127; /* FIXME - remove */
 
 	/* protocol must be http:// or https:// */
 	if (memcmp(line, "http", 4)) return LSD_ERROR_CONFIG_INVALID;

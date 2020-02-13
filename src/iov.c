@@ -22,8 +22,10 @@
  */
 
 #include "iov.h"
+#include "log.h"
 #include <errno.h>
 #include <fnmatch.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -123,6 +125,22 @@ int iov_push(iovstack_t *iovs, void *base, size_t len)
 int iov_pushs(iovstack_t *iovs, char *str)
 {
 	return iov_push(iovs, (void *)str, strlen(str));
+}
+
+int iov_pushf(iovstack_t *iovs, char *str, char *fmt, ...)
+{
+	int err;
+	va_list argp;
+
+	va_start(argp, fmt);
+	str = malloc(vsnprintf(str, 0, fmt, argp));
+	va_end(argp);
+	va_start(argp, fmt);
+	vsprintf(str, fmt, argp);
+	va_end(argp);
+	err = iov_push(iovs, (void *)str, strlen(str));
+
+	return err;
 }
 
 int iov_pushv(iovstack_t *iovs, struct iovec *iov)
