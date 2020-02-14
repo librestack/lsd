@@ -579,6 +579,51 @@ int config_get(char *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi)
 	return err;
 }
 
+/* allocate and copy string value */
+int config_get_s(const char *db, char *key, char **val, MDB_txn *txn, MDB_dbi dbi)
+{
+	TRACE("%s()", __func__);
+	int err = 0;
+	char txn_close = 0;
+	char dbi_close = 0;
+	MDB_val k;
+	MDB_val v;
+
+	k.mv_size = strlen(key) + 1;
+	k.mv_data = key;
+
+	/* create new transaction and dbi handle if none */
+	if (!txn) {
+		DEBUG("new txn");
+		if ((err = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn)) != 0) {
+			ERROR("%s(): %s", __func__, mdb_strerror(err));
+		}
+		txn_close = 1;
+	}
+	if (!dbi) {
+		DEBUG("new dbi");
+		if ((err = mdb_dbi_open(txn, db, 0, &dbi)) != 0) {
+			ERROR("%s: %s", __func__, mdb_strerror(err));
+		}
+		dbi_close = 1;
+	}
+	err = mdb_get(txn, dbi, &k, &v);
+	if ((err != 0) && (err != MDB_NOTFOUND)) {
+		ERROR("%s: %s", __func__, mdb_strerror(err));
+	}
+	else {	/* return a copy of the data */
+		*val = malloc(v.mv_size + 1);
+		strncpy(*val, v.mv_data, v.mv_size);
+		(*val)[v.mv_size] = '\0';
+	}
+	/* close handles that were opened here */
+	if (dbi_close) mdb_dbi_close(env, dbi);
+	if (txn_close) mdb_txn_abort(txn);
+
+	return err;
+
+}
+
 int config_del(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
 {
 	TRACE("%s()", __func__);

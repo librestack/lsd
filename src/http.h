@@ -22,8 +22,6 @@
  */
 
 #define WC_NO_HARDEN /* FIXME: stop wolfssl warning */
-#define CERT_FILE "server-cert.pem" /* FIXME */
-#define KEY_FILE  "server-key.pem"  /* FIXME */
 
 #include "config.h"
 #include "iov.h"

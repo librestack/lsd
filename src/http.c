@@ -489,6 +489,9 @@ int conn(int sock, proto_t *p)
 	http_request_t req = {};
 	char status[128];
 	char clen[128];
+	char db[2];
+	char *cert = NULL;
+	char *key = NULL;
 	int err = 0;
 	WOLFSSL_CTX *ctx = NULL;
 
@@ -512,13 +515,16 @@ int conn(int sock, proto_t *p)
 			goto conn_cleanup;
 		}
 		/* load certificate */
-		if (wolfSSL_CTX_use_certificate_file(ctx, CERT_FILE, SSL_FILETYPE_PEM) != SSL_SUCCESS) {
-			ERROR("failed to load %s", CERT_FILE);
+		config_db(DB_GLOBAL, db);
+		config_get_s(db, "cert", &cert, NULL, 0);
+		config_get_s(db, "key", &key, NULL, 0);
+		if (wolfSSL_CTX_use_certificate_file(ctx, cert, SSL_FILETYPE_PEM) != SSL_SUCCESS) {
+			ERROR("failed to load cert: %s", cert);
 			goto conn_cleanup;
 		}
 		/* load private key */
-		if (wolfSSL_CTX_use_PrivateKey_file(ctx, KEY_FILE, SSL_FILETYPE_PEM) != SSL_SUCCESS) {
-			ERROR("failed to load %s", KEY_FILE);
+		if (wolfSSL_CTX_use_PrivateKey_file(ctx, key, SSL_FILETYPE_PEM) != SSL_SUCCESS) {
+			ERROR("failed to load key: %s", key);
 			goto conn_cleanup;
 		}
 		/* create new session */
@@ -552,6 +558,8 @@ int conn(int sock, proto_t *p)
 		DEBUG("req.close=%i", req.close);
 	}
 conn_cleanup:
+	free(key);
+	free(cert);
 	iovs_free(&res.iovs);
 	iovs_free(&res.head);
 	mdb_env_close(env); env = NULL;

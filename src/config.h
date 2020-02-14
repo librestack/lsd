@@ -51,8 +51,10 @@ typedef enum {
 #define CONFIG_STRINGS(X) \
 	X("config",	"--config",	"-C", NULL, \
 	  "path to config file") \
-	X("wibble",	"--wibble",	"-W", NULL, \
-	  "wibble wibble wibble")
+	X("cert",	"--cert",	"-c", NULL, \
+	  "path to TLS certificate") \
+	X("key",	"--key",	"-k", NULL, \
+	  "path to TLS key")
 #define CONFIG_BOOLEANS(X) \
 	X("daemon",	"--daemon",	"-d", 0, \
 	  "daemonize? 1=yes, 0=no")
@@ -105,6 +107,7 @@ void	config_close();
 char *	config_db(char db, char name[2]);
 int	config_get(char *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi);
 int	config_get_copy(const char *db, char *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi);
+int	config_get_s(const char *db, char *key, char **val, MDB_txn *txn, MDB_dbi dbi);
 int	config_del(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi);
 int	config_init(int argc, char **argv);
 void	config_init_db();
