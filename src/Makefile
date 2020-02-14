@@ -19,22 +19,19 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 
-COMMON_OBJECTS:=config.o db.o err.o iov.o log.o str.o
-OBJECTS:=$(PROGRAM).o handler.o $(COMMON_OBJECTS)
-MODULES:=echo.so http.so https.so
+COMMON_OBJECTS = config.o db.o err.o iov.o log.o str.o
+OBJECTS = $(PROGRAM).o handler.o $(COMMON_OBJECTS)
+MODULES = echo.so http.so https.so
 
 CFLAGS += -fPIC
 
-LDFLAGS:=-ldl -lrt -llmdb
+LDLIBS = -ldl -lrt -llmdb
 
 .PHONY:		all clean
 
 all:		$(PROGRAM) $(MODULES)
 
 lsd:		$(OBJECTS)
-		$(CC) $(LDFLAGS) -o $(PROGRAM) $(OBJECTS)
-
-$(PROGRAM).o:	$(PROGRAM).c $(PROGRAM).h
 
 echo.so:	echo.o $(COMMON_OBJECTS)
 		$(CC) -shared -fPIC -o $@  $^
@@ -44,24 +41,6 @@ http.so:	http.o $(COMMON_OBJECTS)
 
 https.so:	http.so
 		ln -s http.so https.so
-
-echo.o:		echo.c
-
-http.o:		http.c http.h
-
-config.o:	config.c config.h
-
-db.o:		db.c db.h
-
-err.o:		err.c err.h
-
-handler.o:	handler.c handler.h
-
-log.o:		log.c log.h
-
-iov.o:		iov.c iov.h
-
-str.o:		str.c str.h
 
 clean:
 		rm -f *.o $(PROGRAM) $(MODULES)
