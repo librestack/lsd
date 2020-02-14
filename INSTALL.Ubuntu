@@ -1,0 +1,6 @@
+# INSTALL
+
+## Ubuntu 18.04 LTS
+
+The following packages are required:
+```apt-get install liblmdb-dev libwolfssl-dev```
