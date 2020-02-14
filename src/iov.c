@@ -99,7 +99,7 @@ char *iovdup(struct iovec *iov)
 
 char iovidx(struct iovec iov, int off)
 {
-	if (abs(off) > iov.iov_len) {
+	if (abs(off) > (ssize_t)iov.iov_len) {
 		errno = EINVAL;
 		return 0;
 	}
