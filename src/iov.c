@@ -133,7 +133,7 @@ int iov_pushf(iovstack_t *iovs, char *str, char *fmt, ...)
 	va_list argp;
 
 	va_start(argp, fmt);
-	str = malloc(vsnprintf(str, 0, fmt, argp));
+	str = malloc(vsnprintf(NULL, 0, fmt, argp) + 1);
 	va_end(argp);
 	va_start(argp, fmt);
 	vsprintf(str, fmt, argp);
