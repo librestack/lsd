@@ -852,6 +852,7 @@ void config_init_db()
 	mdb_env_set_maxreaders(env, HANDLER_MAX + 1);
 	mdb_env_set_mapsize(env, 10485760); /* TODO: how big a map do we need? */
 	mdb_env_set_maxdbs(env, DB_MAX);
+	/* FIXME: check DB_PATH exists and is writable! */
 	mdb_env_open(env, DB_PATH, MDB_NOTLS, 0600); /* TODO: set ownership on dropprivs */
 }
 

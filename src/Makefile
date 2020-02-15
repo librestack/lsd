@@ -44,3 +44,8 @@ https.so:	http.so
 
 clean:
 		rm -f *.o $(PROGRAM) $(MODULES)
+
+install:	all
+		install -d $(BIN_PATH)
+		install -d $(DB_PATH)
+		install $(PROGRAM) $(MODULES) $(BIN_PATH)/

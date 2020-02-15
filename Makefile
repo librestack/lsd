@@ -2,7 +2,7 @@
 #
 # this file is part of LIBRESTACK
 #
-# Copyright (c) 2012-2019 Brett Sheffield <bacs@librecast.net>
+# Copyright (c) 2012-2020 Brett Sheffield <bacs@librecast.net>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +23,15 @@ export PROGRAM
 
 PREFIX = /usr/local
 export PREFIX
+
+LIB_PATH = $(PREFIX)/lib
+export LIB_PATH
+
+BIN_PATH = $(PREFIX)/sbin
+export BIN_PATH
+
+DB_PATH = /var/cache/lsd/
+export DB_PATH
 
 CFLAGS += -Wall -Werror -Wextra -g
 export CFLAGS
