@@ -229,6 +229,7 @@ http_request_read(conn_t *c, http_request_t *req, http_response_t *res)
 		req->close = 1;
 		return HTTP_BAD_REQUEST;
 	}
+	DEBUG("%.*s", len, ptr);
 
 	i = wordend(&ptr, HTTP_METHOD_MAX, req->len);	/* HTTP method */
 	if (i == 0 || i == req->len)
@@ -249,7 +250,20 @@ http_request_read(conn_t *c, http_request_t *req, http_response_t *res)
 	i = wordend(&ptr, HTTP_VERSION_MAX, req->len);	/* HTTP version */
 	if (i == 0 || i == req->len)
 		return HTTP_BAD_REQUEST;
+	if (strncmp(ptr, "HTTP/", 5)) {
+		return HTTP_BAD_REQUEST;
+	}
+	ptr += 5; i -= 5;
 	iovset(&req->httpv, ptr, i);
+	DEBUG("HTTP_VERSION: %.*s", i, ptr);
+	if (strncmp(ptr, "1.1", i)) {
+		if (!strncmp(ptr, "1.0", i)) {
+			req->close = 1;
+		}
+		else {
+			return HTTP_VERSION_NOT_SUPPORTED;
+		}
+	}
 
 	return http_headers_read(c, req, res);
 }
