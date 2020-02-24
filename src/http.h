@@ -21,11 +21,8 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define WC_NO_HARDEN /* FIXME: stop wolfssl warning */
-
 #include "config.h"
 #include "iov.h"
-#include <wolfssl/ssl.h>
 
 #define HTTP_DB_URI "http_uri"
 #define HTTP_METHOD_MAX 8	/* maximum length of HTTP method */
@@ -73,7 +70,6 @@ enum {
 
 typedef struct http_request_s http_request_t;
 struct http_request_s {
-	proto_t *proto;			/* protocol details */
 	struct iovec httpv;             /* HTTP version */
 	struct iovec method;            /* HTTP request method (GET, POST etc.) */
 	struct iovec uri;               /* resource (url) requested */
@@ -89,7 +85,6 @@ struct http_request_s {
 
 typedef struct http_response_s http_response_t;
 struct http_response_s {
-	WOLFSSL *ssl;			/* WOLFSSL object */
 	iovstack_t iovs;		/* iovec response array */
 	iovstack_t head;		/* iovec header array */
 	struct iovec uri[HTTP_PARTS];	/* matched config uri */
@@ -98,7 +93,7 @@ struct http_response_s {
 };
 
 /* handle new connection */
-int conn(int sock, proto_t *p);
+int conn(conn_t *c);
 
 /* process uri config line */
 int load_uri(char *uri, MDB_txn *txn);

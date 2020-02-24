@@ -42,8 +42,9 @@
 #include <unistd.h>
 
 #define IOVSIZE 5 /* number of iov structures to allocate at once */
+#define BUFLEN BUFSIZ
 
-char buf[BUFSIZ];
+char buf[BUFLEN];
 struct iovec *msg_iov;
 
 int setcork(int sock, int state)
@@ -92,47 +93,142 @@ int http_header_process(http_request_t *req, http_response_t *res,
 	return 0;
 }
 
-static inline http_status_code_t
-http_headers_read(char *buf, http_request_t *req, http_response_t *res)
+int http_ready(int sock)
 {
-	char *ptr, *crlf;
+	return (recv(sock, buf, 1, MSG_PEEK | MSG_WAITALL) > 0);
+}
+
+/* top up http buffer, returning number of bytes read or -1 on error
+ * lclen = value of Content-Length header, or -1 */
+ssize_t http_fill_buffer(conn_t *c, void *ptr, size_t len)
+{
+	TRACE("%s()", __func__);
+	ssize_t byt = 0;
+
+	//if (!http_ready(c->sock))
+	//	return 0;
+	if (c->ssl) {
+		if ((byt = wolfSSL_read(c->ssl, ptr, len)) < 0) {
+			return -1;
+		}
+	}
+	else {
+		if ((byt = recv(c->sock, ptr, len, 0)) == -1) {
+			ERROR("recv() error '%s'", strerror(errno));
+			return -1;
+		}
+	}
+
+	DEBUG("%lu bytes read", byt);
+
+	return byt;
+}
+
+/* return one line at a time, reading from socket as we go */
+ssize_t http_read_line(conn_t *c, char **line, http_request_t *req)
+{
+	TRACE("%s()", __func__);
+
+	static void *ptr = buf;		/* ptr to empty buffer */
+	static void *nxt = buf;		/* ptr to unprocessed bytes */
+	static size_t byt = 0;		/* unprocessed bytes */
+	void *nl = NULL;		/* ptr to newline */
+	ssize_t len = 0;		/* length of line */
+
+	if (!req->len) {
+		ptr = nxt = buf;
+		byt = 0;
+	}
+
+	do {
+		if (byt) { /* have unprocessed bytes */
+
+			/* check for newline */
+			nl = memchr(nxt, '\n', byt);
+			if (nl) {
+				DEBUG("found newline");
+				*line = nxt;
+				len = nl - nxt;
+				nxt = nl + 1;
+				req->len += len;
+				byt -= len;
+
+				/* chop CRLF */
+				len--;
+				if ((*line)[len - 1] == '\r') len--;
+
+				return len;
+			}
+		}
+		/* either we have no bytes, or they don't contain a LF */
+
+		len = BUFLEN - ((char *)ptr - buf); /* remaining buffer space */
+
+		/* we're near the end of the buffer */
+		if (byt && len < LINE_MAX) {
+			/* move unprocessed bytes to beginning of buffer */
+			DEBUG("shifting unprocessed bytes");
+			memmove(buf, nxt, len);
+			len = BUFLEN;
+			nxt = ptr = buf;
+		}
+
+		/* read some bytes */
+		len = http_fill_buffer(c, ptr, len);
+		if (len > 0) {
+			if (byt + len < BUFLEN) {
+				ptr += len;
+				byt += len;
+			}
+			else return -1;
+		}
+	} while (len > 0);
+
+	return len;
+}
+
+static inline http_status_code_t
+http_headers_read(conn_t *c, http_request_t *req, http_response_t *res)
+{
+	char *ptr;
 	struct iovec header, val;
 	size_t i;
+	ssize_t len;
 	int err;
 
-	ptr = buf;
-	while (ptr < buf + req->len) {
-		i = wordend(&ptr, BUFSIZ, req->len);
+	/* read headers until we find a blank line */
+	while ((len = http_read_line(c, &ptr, req)) > 0) {
+		i = wordend(&ptr, len, req->len);
 		if (i == 0 || i == req->len) break;
 		iovset(&header, ptr, i - 1);
 		ptr += i + 1;
-		crlf = strstr(ptr, "\r\n");
-		iovset(&val, ptr, crlf - ptr);
+		iovset(&val, ptr, len - i - 1);
 		if ((err = http_header_process(req, res, &header, &val)))
 			return err;
-		ptr = crlf + 2;
+	}
+	if (len == -1) {
+		req->close = 1;
+		return HTTP_BAD_REQUEST;
 	}
 	return 0;
 }
 
+
 http_status_code_t
-http_request_read(int sock, http_request_t *req, http_response_t *res)
+http_request_read(conn_t *c, http_request_t *req, http_response_t *res)
 {
+	TRACE("%s()", __func__);
 	size_t i;
-	ssize_t len;
+	ssize_t len = 0;
 	char *ptr;
 
-	if (res->ssl) {
-		if ((len = wolfSSL_read(res->ssl, buf, BUFSIZ-1)) < 0) {
-			req->close = 1;
-			return HTTP_BAD_REQUEST;
-		}
-		req->len = (size_t)len;
+	memset(req, 0, sizeof(http_request_t));
+
+	/* read first request line */
+	if ((len = http_read_line(c, &ptr, req)) == -1) {
+		req->close = 1;
+		return HTTP_BAD_REQUEST;
 	}
-	else {
-		req->len = recv(sock, buf, BUFSIZ, 0);
-	}
-	ptr = buf;
 
 	i = wordend(&ptr, HTTP_METHOD_MAX, req->len);	/* HTTP method */
 	if (i == 0 || i == req->len)
@@ -155,28 +251,23 @@ http_request_read(int sock, http_request_t *req, http_response_t *res)
 		return HTTP_BAD_REQUEST;
 	iovset(&req->httpv, ptr, i);
 
-	ptr += i;
-	if (memcmp(ptr, "\r\n", 2))			/* CRLF */
-		return HTTP_BAD_REQUEST;
-	ptr += 2;
-
-	return http_headers_read(ptr, req, res);
+	return http_headers_read(c, req, res);
 }
 
-int http_response_send(int sock, http_request_t *req, http_response_t *res)
+int http_response_send(conn_t *c, http_request_t *req, http_response_t *res)
 {
 	(void) req; /* FIXME - unused */
 
-	setcork(sock, 1);
-	if (res->ssl) {
-		if (!wolfSSL_writev(res->ssl, res->iovs.iov, res->iovs.idx)) {
+	setcork(c->sock, 1);
+	if (c->ssl) {
+		if (!wolfSSL_writev(c->ssl, res->iovs.iov, res->iovs.idx)) {
 			FAIL(LSD_ERROR_TLS_WRITE);
 		}
 	}
 	else {
-		writev(sock, res->iovs.iov, res->iovs.idx); /* TODO: check errors */
+		writev(c->sock, res->iovs.iov, res->iovs.idx); /* TODO: check errors */
 	}
-	setcork(sock, 0);
+	setcork(c->sock, 0);
 	return 0;
 }
 
@@ -209,9 +300,9 @@ int http_match_uri(http_request_t *req, struct iovec uri[HTTP_PARTS])
 }
 
 http_status_code_t
-http_request_handle(http_request_t *req, http_response_t *res)
+http_request_handle(conn_t *c, http_request_t *req, http_response_t *res)
 {
-	DEBUG("%s()", __func__);
+	TRACE("%s()", __func__);
 	MDB_val val = { 0, NULL };
 
 	/* protocol, method, action, args, host, port, path */
@@ -226,8 +317,8 @@ http_request_handle(http_request_t *req, http_response_t *res)
 		ptr++;
 
 		/* https requests only match https uris */
-		if ((tls && strcmp(req->proto->module, "https")) 
-		|| (!tls && !strcmp(req->proto->module, "https")))
+		if ((tls && strcmp(c->proto->module, "https")) 
+		|| (!tls && !strcmp(c->proto->module, "https")))
 			continue;
 
 		for (int j = 0; j < HTTP_PARTS; j++) {
@@ -305,7 +396,7 @@ char *fileext(char *filename)
 	return NULL;
 }
 
-int http_sendfile(int sock, char *filename, http_request_t *req, http_response_t *res)
+int http_sendfile(conn_t *c, char *filename, http_request_t *req, http_response_t *res)
 {
 	struct stat sb;
 	char status[128];
@@ -326,7 +417,7 @@ int http_sendfile(int sock, char *filename, http_request_t *req, http_response_t
 		return HTTP_NOT_FOUND;
 	}
 	DEBUG("Sending %zu bytes", sb.st_size);
-	setcork(sock, 1);
+	setcork(c->sock, 1);
 	iov_push(&res->iovs, status, http_status(status, HTTP_OK));
 	mime = http_mimetype(fileext(filename));
 	if (mime)
@@ -336,7 +427,7 @@ int http_sendfile(int sock, char *filename, http_request_t *req, http_response_t
 	iov_pushf(&res->iovs, clen, "Content-Length: %zu\r\n", sb.st_size);
 	iov_pushs(&res->iovs, "\r\n");
 
-	if (res->ssl) {
+	if (c->ssl) {
 		DEBUG("TLS ENABLED");
 
 		/* FIXME: wolfssl casts size_t to int, imposing a 2GB filesize limit */
@@ -344,26 +435,27 @@ int http_sendfile(int sock, char *filename, http_request_t *req, http_response_t
 
 		map = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, f, 0);
 		iov_push(&res->iovs, map, sb.st_size);
-		if (!wolfSSL_writev(res->ssl, res->iovs.iov, res->iovs.idx)) {
+		if (!wolfSSL_writev(c->ssl, res->iovs.iov, res->iovs.idx)) {
 			ERRMSG(LSD_ERROR_TLS_WRITE);
 			req->close = 1;
 		}
-		setcork(sock, 0);
+		setcork(c->sock, 0);
 	}
 	else {
-		if (writev(sock, res->iovs.iov, res->iovs.idx) == -1) {
+		if (writev(c->sock, res->iovs.iov, res->iovs.idx) == -1) {
 			ERROR("error writing headers");
 			req->close = 1;
 			goto http_sendfile_free;
 		}
-		while ((ret = sendfile(sock, f, &ret, sb.st_size)) < sb.st_size) {
+		while ((ret = sendfile(c->sock, f, &ret, sb.st_size)) < sb.st_size) {
 			if (ret == -1) {
 				ERROR("error sending file '%s': %s", filename, strerror(errno));
 				req->close = 1;
 				break;
 			}
 		}
-		setcork(sock, 0);
+		setcork(c->sock, 0);
+		ret = 0;
 	}
 http_sendfile_free:
 	if (map) munmap(map, sb.st_size);
@@ -376,7 +468,7 @@ http_sendfile_free:
 }
 
 http_status_code_t
-http_response_static(int sock, http_request_t *req, http_response_t *res)
+http_response_static(conn_t *c, http_request_t *req, http_response_t *res)
 {
 	char *filename = NULL;
 	char *ptr;
@@ -422,7 +514,7 @@ http_response_static(int sock, http_request_t *req, http_response_t *res)
 	if (filename) {
 sendnow:
 		DEBUG("sending file '%s'", filename);
-		err = http_sendfile(sock, filename, req, res);
+		err = http_sendfile(c, filename, req, res);
 		free(filename);
 	}
 
@@ -431,7 +523,7 @@ sendnow:
 
 /* returning nonzero means the response has already been sent by the handler */
 http_status_code_t
-http_response(int sock, http_request_t *req, http_response_t *res)
+http_response(conn_t *c, http_request_t *req, http_response_t *res)
 {
 	http_status_code_t code = 0;
 	char *ptr;
@@ -466,7 +558,7 @@ http_response(int sock, http_request_t *req, http_response_t *res)
 	/* serve static file */
 	else if (!iovstrcmp(&res->uri[HTTP_ACTION], "static")) {
 		DEBUG("RESPONSE: static");
-		code = http_response_static(sock, req, res);
+		code = http_response_static(c, req, res);
 	}
 	else if (!iovstrcmp(&res->uri[HTTP_ACTION], "echo")) {
 		DEBUG("RESPONSE: echo");
@@ -478,13 +570,9 @@ http_response(int sock, http_request_t *req, http_response_t *res)
 	return code;
 }
 
-int http_ready(int sock)
-{
-	return (recv(sock, buf, 1, MSG_PEEK | MSG_WAITALL) > 0);
-}
-
 /* Handle new connection */
-int conn(int sock, proto_t *p)
+//int conn(int sock, proto_t *p)
+int conn(conn_t *c)
 {
 	http_response_t res = {};
 	http_request_t req = {};
@@ -498,7 +586,6 @@ int conn(int sock, proto_t *p)
 
 	loglevel = 127; /* FIXME - remove */
 
-	req.proto = p;
 	res.iovs.nmemb = IOVSIZE;
 	res.head.nmemb = IOVSIZE;
 
@@ -508,7 +595,7 @@ int conn(int sock, proto_t *p)
 	env = NULL; config_init_db();
 
 	/* handle TLS connection */
-	if (!strcmp(p->module, "https")) {
+	if (!strcmp(c->proto->module, "https")) {
 		/* Initialize wolfSSL */
 		wolfSSL_Init();
 		if ((ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method())) == NULL) {
@@ -529,17 +616,18 @@ int conn(int sock, proto_t *p)
 			goto conn_cleanup;
 		}
 		/* create new session */
-		if ((res.ssl = wolfSSL_new(ctx)) == NULL) {
+		if ((c->ssl = wolfSSL_new(ctx)) == NULL) {
 			ERROR("failed to create WOLFSSL object");
 			goto conn_cleanup;
 		}
-		wolfSSL_set_fd(res.ssl, sock);
+		wolfSSL_set_fd(c->ssl, c->sock);
 	}
 
-	while (!req.close && http_ready(sock)) {
-		err = http_request_read(sock, &req, &res);
-		if (!err) err = http_request_handle(&req, &res);
-		if (!err) err = http_response(sock, &req, &res);
+	//while (!req.close && http_ready(c->sock)) {
+	while (!req.close) {
+		err = http_request_read(c, &req, &res);
+		if (!err) err = http_request_handle(c, &req, &res);
+		if (!err) err = http_response(c, &req, &res);
 		if (err) {
 			iov_push(&res.iovs, status, http_status(status, err));
 			iov_push(&res.iovs, clen,
@@ -551,7 +639,7 @@ int conn(int sock, proto_t *p)
 			}
 			iov_push(&res.iovs, CRLF, 2);
 			if (res.body.iov_len) iov_pushv(&res.iovs, &res.body);
-			err = http_response_send(sock, &req, &res);
+			err = http_response_send(c, &req, &res);
 		}
 		iovs_clear(&res.iovs);
 		iovs_clear(&res.head);
@@ -565,8 +653,8 @@ conn_cleanup:
 	iovs_free(&res.head);
 	mdb_env_close(env); env = NULL;
 
-	if (!strcmp(p->module, "https")) {
-		if (res.ssl) wolfSSL_free(res.ssl);
+	if (!strcmp(c->proto->module, "https")) {
+		if (c->ssl) wolfSSL_free(c->ssl);
 		if (ctx) wolfSSL_CTX_free(ctx);
 		wolfSSL_Cleanup();
 	}

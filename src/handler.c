@@ -56,25 +56,26 @@ void handler_close()
 int handle_connection(int idx, int sock)
 {
 	MDB_val val = { 0, NULL };
-	proto_t *p;
+	conn_t c = {};
 	module_t *mod;
 	int err = 0;
 
 	DEBUG("connection received on socket %i", idx);
+	c.sock = sock;
 	for (int i = 0; config_yield_s(DB_PROTO, "proto", &val) == CONFIG_NEXT; i++) {
 		if (idx == i) break;
 	}
 	if (val.mv_size > 0) {
 		/* call handler module */
-		p = (proto_t *)val.mv_data;
-		mod = (module_t *)config_module(p->module, strlen(p->module));
+		c.proto = (proto_t *)val.mv_data;
+		mod = (module_t *)config_module(c.proto->module, strlen(c.proto->module));
 		if (!mod) goto handle_connection_err;
 		/* TODO: check module TLS settings */
-		int (* conn)(int, proto_t*);
+		int (* conn)(conn_t*);
 		conn = dlsym(mod->ptr, "conn");
 		if (conn) {
 		/* TODO: handle return codes - provide different facilities to different plugins */
-			err = conn(sock, p);
+			err = conn(&c);
 			/* TODO if (err == NEW_LINE_PLEASE) etc. */
 			goto handle_connection_exit;
 		}

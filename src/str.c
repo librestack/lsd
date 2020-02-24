@@ -23,6 +23,26 @@
 
 #include "str.h"
 #include <ctype.h>
+#include <string.h>
+
+#ifndef memmem
+void *memmem(const void *h, size_t hlen, const void *n, size_t nlen)
+{
+	void *p;
+
+	while ((p = memchr(h, ((char *)n)[0], hlen))) {
+		if ((size_t)(p + nlen) > hlen) return NULL;
+
+		/* found start, check for rest of needle */
+		if (!memcmp(p, n, nlen))
+			return p;
+
+		h = p + 1;
+	}
+
+	return NULL;
+}
+#endif
 
 /* advance ptr to end of word, return length */
 size_t wordend(char **ptr, size_t ptrmax, size_t maxlen)

@@ -24,6 +24,9 @@
 #ifndef __LSD_CONFIG
 #define __LSD_CONFIG
 
+#define WC_NO_HARDEN /* FIXME: stop wolfssl warning */
+#include <wolfssl/ssl.h>
+
 #include "db.h"
 #include <netdb.h>
 #include <stdint.h>
@@ -81,6 +84,12 @@ struct proto_s {
 	uint8_t		socktype;
 	char		addr[INET6_ADDRSTRLEN];
 	char		module[];
+};
+typedef struct conn_s conn_t;
+struct conn_s {
+	proto_t		*proto;
+	int		sock;
+	WOLFSSL		*ssl;
 };
 
 typedef struct uri_s uri_t;
