@@ -52,10 +52,17 @@ int setcork(int sock, int state)
 	return setsockopt(sock, IPPROTO_TCP, TCP_CORK, &state, sizeof(state));
 }
 
+char *http_phrase(http_status_code_t code)
+{
+	switch (code) {
+		HTTP_CODES(HTTP_CODE_PHRASE)
+	}
+	return "Unknown";
+}
+
 size_t http_status(char *status, http_status_code_t code)
 {
-	/* TODO: actually look up codes */
-	return sprintf(status, "HTTP/1.1 %i - Some Status Here\r\n", code);
+	return sprintf(status, "HTTP/1.1 %i - %s\r\n", code, http_phrase(code));
 }
 
 /*

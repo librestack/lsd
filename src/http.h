@@ -30,25 +30,52 @@
 #define HTTP_VERSION_MAX 9	/* maximum length of HTTP uri */
 #define CRLF "\r\n"
 
+#define HTTP_CODES(X) \
+	X(100,	HTTP_CONTINUE,			"Continue") \
+	X(101,	HTTP_SWITCHING_PROTOCOLS,	"Switching Protocols") \
+	X(200,	HTTP_OK,			"OK") \
+	X(201,	HTTP_CREATED,			"Created") \
+	X(202,	HTTP_ACCEPTED,			"Accepted") \
+	X(203,	HTTP_NON_AUTHORITATIVE,		"Non-Authoritative Information") \
+	X(204,	HTTP_NO_CONTENT,		"No Content") \
+	X(205,	HTTP_RESET_CONTENT,		"Reset Content") \
+	X(206,	HTTP_PARTIAL_CONTENT,		"Partial Content") \
+	X(300,	HTTP_MULTIPLE_CHOICES,		"Multiple Choices") \
+	X(301,	HTTP_MOVED_PERMANENTLY,		"Moved Permanently") \
+	X(302,	HTTP_FOUND,			"Found") \
+	X(303,	HTTP_SEE_OTHER,			"See Other") \
+	X(400,	HTTP_BAD_REQUEST,		"Bad Request") \
+	X(401,	HTTP_UNAUTHORIZED,		"Unauthorized") \
+	X(402,	HTTP_PAYMENT_REQUIRED,		"Payment Required") \
+	X(403,	HTTP_FORBIDDEN,			"Forbidden") \
+	X(404,	HTTP_NOT_FOUND,			"Not Found") \
+	X(405,	HTTP_METHOD_NOT_ALLOWED,	"Method Not Allowed") \
+	X(406,	HTTP_NOT_ACCEPTABLE,		"Not Acceptable") \
+	X(407,	HTTP_PROXY_AUTH_REQUIRED,	"Proxy Authentication Required") \
+	X(408,	HTTP_REQUEST_TIMEOUT,		"Request Time-out") \
+	X(409,	HTTP_CONFLICT,			"Conflict") \
+	X(410,	HTTP_GONE,			"Gone") \
+	X(411,	HTTP_LENGTH_REQUIRED,		"Length Required") \
+	X(412,	HTTP_PRECONDITION_FAIL,		"Precondition Failed") \
+	X(413,	HTTP_ENTITY_TOO_LARGE,		"Request Entity Too Large") \
+	X(414,	HTTP_URI_TOO_LARGE,		"Request-URI Too Large") \
+	X(415,	HTTP_UNSUPPORTED_MEDIA_TYPE,	"Unsupported Media Type") \
+	X(416,	HTTP_RANGE_FAIL,		"Requested range not satisfiable") \
+	X(417,	HTTP_EXPECTATION_FAILED,	"Expectation Failed") \
+	X(418,	HTTP_TEAPOT,			"I am a teapot") \
+	X(419,	HTTP_UNAVAILABLE_LEGAL,		"Unavailable for Legal Reasons") \
+	X(500,	HTTP_INTERNAL_SERVER_ERROR,	"Internal Server Error") \
+	X(501,	HTTP_NOT_IMPLEMENTED,		"Not Implemented") \
+	X(502,	HTTP_BAD_GATEWAY,		"Bad Gateway") \
+	X(503,	HTTP_SERVICE_UNAVILABLE,	"Service Unavailable") \
+	X(504,	HTTP_GATEWAY_TIMEOUT,		"Gateway Time-out") \
+	X(505,	HTTP_VERSION_NOT_SUPPORTED,	"HTTP Version not supported")
+#undef X
+
+#define HTTP_CODE_PHRASE(id, name, desc) case name: return desc;
+#define HTTP_CODE_ENUM(id, name, desc) name = id,
 typedef enum {
-	HTTP_SWITCHING_PROTOCOLS        = 101,
-	HTTP_OK                         = 200,
-	HTTP_CREATED                    = 201,
-	HTTP_MOVED_PERMANENTLY		= 301,
-	HTTP_FOUND			= 302,
-	HTTP_SEE_OTHER			= 303,
-	HTTP_BAD_REQUEST                = 400,
-	HTTP_UNAUTHORIZED               = 401,
-	HTTP_FORBIDDEN                  = 403,
-	HTTP_NOT_FOUND                  = 404,
-	HTTP_METHOD_NOT_ALLOWED         = 405,
-	HTTP_LENGTH_REQUIRED            = 411,
-	HTTP_UNSUPPORTED_MEDIA_TYPE     = 415,
-	HTTP_TEAPOT                     = 418,
-	HTTP_UNAVAILABLE_LEGAL		= 451,
-	HTTP_INTERNAL_SERVER_ERROR      = 500,
-	HTTP_NOT_IMPLEMENTED            = 501,
-	HTTP_VERSION_NOT_SUPPORTED      = 505,
+	HTTP_CODES(HTTP_CODE_ENUM)
 } http_status_code_t;
 
 typedef enum {
