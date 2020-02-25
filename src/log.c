@@ -4,7 +4,7 @@
  *
  * this file is part of LIBRESTACK
  *
- * Copyright (c) 2012-2019 Brett Sheffield <bacs@librecast.net>
+ * Copyright (c) 2012-2020 Brett Sheffield <bacs@librecast.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,6 +51,9 @@ void logmsg(unsigned int level, const char *fmt, ...)
 		b = mbuf;
 	}
 	va_end(argp);
-	fprintf(stderr, "%s\n", b);
+	if (level == LOG_INFO)
+		fprintf(stdout, "%s\n", b);
+	else
+		fprintf(stderr, "%s\n", b);
 	free(mbuf);
 }

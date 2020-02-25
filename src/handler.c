@@ -4,7 +4,7 @@
  *
  * this file is part of LIBRESTACK
  *
- * Copyright (c) 2012-2019 Brett Sheffield <bacs@librecast.net>
+ * Copyright (c) 2012-2020 Brett Sheffield <bacs@librecast.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,12 +53,27 @@ void handler_close()
 	_exit(0);
 }
 
+void *get_in_addr(struct sockaddr *sa)
+{
+	if (sa->sa_family == AF_INET) {
+		return &(((struct sockaddr_in*)sa)->sin_addr);
+	}
+	return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
 int handle_connection(int idx, int sock)
 {
 	MDB_val val = { 0, NULL };
 	conn_t c = {};
 	module_t *mod;
 	int err = 0;
+	struct sockaddr sa = {};
+	socklen_t slen = sizeof(struct sockaddr_in6);
+
+	/* get IP address of peer */
+	if (!getpeername(sock, &sa, &slen))
+		inet_ntop(sa.sa_family, get_in_addr((struct sockaddr *)&sa),
+		          c.addr, INET6_ADDRSTRLEN);
 
 	DEBUG("connection received on socket %i", idx);
 	c.sock = sock;

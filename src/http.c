@@ -231,6 +231,9 @@ http_request_read(conn_t *c, http_request_t *req, http_response_t *res)
 
 	memset(req, 0, sizeof(http_request_t));
 
+	/* set request time so we have consist timestamp when needed */
+	req->t = time(NULL);
+
 	/* read first request line */
 	if ((len = http_read_line(c, &ptr, req)) == -1) {
 		req->close = 1;
@@ -318,6 +321,23 @@ int http_match_uri(http_request_t *req, struct iovec uri[HTTP_PARTS])
 		return 1;
 
 	return 0;
+}
+
+/* output NCSA Common log format */
+void http_request_log(conn_t *c, http_request_t *req, http_response_t *res)
+{
+	char ts[27];
+
+	strftime(ts, 27, "%d/%b/%Y:%T %z", localtime(&req->t));
+	INFO("%s - - [%s] \"%.*s %.*s HTTP/%.*s\" %i %zu",
+		c->addr,
+		ts,
+		req->method.iov_len, req->method.iov_base,
+		req->uri.iov_len, req->uri.iov_base,
+		req->httpv.iov_len, req->httpv.iov_base,
+		res->code,
+		res->len
+	);
 }
 
 http_status_code_t
@@ -463,11 +483,13 @@ int http_sendfile(conn_t *c, char *filename, http_request_t *req, http_response_
 		setcork(c->sock, 0);
 	}
 	else {
-		if (writev(c->sock, res->iovs.iov, res->iovs.idx) == -1) {
+		if ((ret = writev(c->sock, res->iovs.iov, res->iovs.idx)) == -1) {
 			ERROR("error writing headers");
 			req->close = 1;
 			goto http_sendfile_free;
 		}
+		res->len += (size_t)ret;
+		ret = 0;
 		while ((ret = sendfile(c->sock, f, &ret, sb.st_size)) < sb.st_size) {
 			if (ret == -1) {
 				ERROR("error sending file '%s': %s", filename, strerror(errno));
@@ -476,7 +498,11 @@ int http_sendfile(conn_t *c, char *filename, http_request_t *req, http_response_
 			}
 		}
 		setcork(c->sock, 0);
-		ret = 0;
+		if (ret > 0) {
+			res->len += (size_t)ret;
+			res->code = HTTP_OK;
+			ret = 0;
+		}
 	}
 http_sendfile_free:
 	if (map) munmap(map, sb.st_size);
@@ -605,8 +631,6 @@ int conn(conn_t *c)
 	int err = 0;
 	WOLFSSL_CTX *ctx = NULL;
 
-	loglevel = 127; /* FIXME - remove */
-
 	res.iovs.nmemb = IOVSIZE;
 	res.head.nmemb = IOVSIZE;
 
@@ -645,10 +669,12 @@ int conn(conn_t *c)
 	}
 
 	while (!req.close && http_ready(c->sock)) {
+		memset(&res, 0, sizeof(http_response_t));
 		err = http_request_read(c, &req, &res);
 		if (!err) err = http_request_handle(c, &req, &res);
 		if (!err) err = http_response(c, &req, &res);
 		if (err) {
+			res.code = err;
 			iov_push(&res.iovs, status, http_status(status, err));
 			iov_push(&res.iovs, clen,
 			    sprintf(clen, "Content-Length: %zu\r\n",
@@ -661,6 +687,8 @@ int conn(conn_t *c)
 			if (res.body.iov_len) iov_pushv(&res.iovs, &res.body);
 			err = http_response_send(c, &req, &res);
 		}
+		if (err > 0) res.code = err;
+		http_request_log(c, &req, &res);
 		iovs_clear(&res.iovs);
 		iovs_clear(&res.head);
 		DEBUG("request finished");
@@ -712,8 +740,6 @@ int load_uri(char *line, MDB_txn *txn)
 	char * pp = pack;
 
 	memset(pack, 0, sizeof(pack));
-
-	loglevel = 127; /* FIXME - remove */
 
 	/* protocol must be http:// or https:// */
 	if (memcmp(line, "http", 4)) return LSD_ERROR_CONFIG_INVALID;

@@ -4,7 +4,7 @@
  *
  * this file is part of LIBRESTACK
  *
- * Copyright (c) 2012-2019 Brett Sheffield <bacs@librecast.net>
+ * Copyright (c) 2012-2020 Brett Sheffield <bacs@librecast.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -88,6 +88,7 @@ struct proto_s {
 typedef struct conn_s conn_t;
 struct conn_s {
 	proto_t		*proto;
+	char		addr[INET6_ADDRSTRLEN];
 	int		sock;
 	WOLFSSL		*ssl;
 };

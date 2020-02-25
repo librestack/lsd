@@ -4,7 +4,7 @@
  *
  * this file is part of LIBRESTACK
  *
- * Copyright (c) 2012-2019 Brett Sheffield <bacs@librecast.net>
+ * Copyright (c) 2012-2020 Brett Sheffield <bacs@librecast.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ enum {
 	LOG_LEVELS(LOG_ENUM)
 };
 
-#define LOG_LOGLEVEL_DEFAULT 63
+#define LOG_LOGLEVEL_DEFAULT 15
 extern unsigned int loglevel;
 
 #define LOG(lvl, fmt, ...) if ((lvl & loglevel) == lvl) logmsg(lvl, fmt ,##__VA_ARGS__)

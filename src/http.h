@@ -23,6 +23,7 @@
 
 #include "config.h"
 #include "iov.h"
+#include <time.h>
 
 #define HTTP_DB_URI "http_uri"
 #define HTTP_METHOD_MAX 8	/* maximum length of HTTP method */
@@ -106,6 +107,7 @@ struct http_request_s {
 	struct iovec lang;		/* Accept-Language */
 	struct iovec cache;		/* Cache-Control */
 	size_t len;                     /* bytes recv()'d */
+	time_t t;			/* timestamp so we have one consistent one to use */
 	char upsec;			/* Upgrade-Insecure-Requests */
 	char close;                     /* Connection: close */
 };
@@ -116,7 +118,9 @@ struct http_response_s {
 	iovstack_t head;		/* iovec header array */
 	struct iovec uri[HTTP_PARTS];	/* matched config uri */
 	struct iovec body;		/* Response body */
+	size_t len;                     /* bytes sent */
 	http_encoding_t encoding;	/* gzip, deflate etc. */
+	http_status_code_t code;	/* HTTP status code */
 };
 
 /* handle new connection */

@@ -4,7 +4,7 @@
  *
  * this file is part of LIBRESTACK
  *
- * Copyright (c) 2012-2019 Brett Sheffield <bacs@librecast.net>
+ * Copyright (c) 2012-2020 Brett Sheffield <bacs@librecast.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -490,7 +490,6 @@ int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 
 	ptr = strchr(line, ':');
 	len = (size_t)(ptr-line);
-	loglevel = 127; /* FIXME */
 	DEBUG("uri proto: %.*s", len, line);
 
 	/* find or load module for this uri */
