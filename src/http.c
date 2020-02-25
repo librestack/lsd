@@ -644,8 +644,7 @@ int conn(conn_t *c)
 		wolfSSL_set_fd(c->ssl, c->sock);
 	}
 
-	//while (!req.close && http_ready(c->sock)) {
-	while (!req.close) {
+	while (!req.close && http_ready(c->sock)) {
 		err = http_request_read(c, &req, &res);
 		if (!err) err = http_request_handle(c, &req, &res);
 		if (!err) err = http_response(c, &req, &res);
