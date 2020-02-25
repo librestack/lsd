@@ -1,2 +1,5 @@
-Load TLS cert and key from config
-HTTP status text
+config document_root (chroot)
+drop privs
+IP connection logging
+better HTTP logging
+default_url
