@@ -97,6 +97,12 @@ int http_header_process(http_request_t *req, http_response_t *res,
 	else if (!iovstrcmp(k, "Cache-Control")) {
 		iovcpy(&req->cache, v);
 	}
+	else if (!iovstrcmp(k, "Referrer")) {
+		iovcpy(&req->referrer, v);
+	}
+	else if (!iovstrcmp(k, "User-Agent")) {
+		iovcpy(&req->useragent, v);
+	}
 	return 0;
 }
 
@@ -225,9 +231,9 @@ http_status_code_t
 http_request_read(conn_t *c, http_request_t *req, http_response_t *res)
 {
 	TRACE("%s()", __func__);
-	size_t i;
+	size_t i, metlen, urilen, htvlen;
 	ssize_t len = 0;
-	char *ptr;
+	char *ptr, *met, *uri, *htv;
 
 	memset(req, 0, sizeof(http_request_t));
 
@@ -244,7 +250,7 @@ http_request_read(conn_t *c, http_request_t *req, http_response_t *res)
 	i = wordend(&ptr, HTTP_METHOD_MAX, req->len);	/* HTTP method */
 	if (i == 0 || i == req->len)
 		return HTTP_BAD_REQUEST;
-	iovset(&req->method, buf, i);
+	met = buf; metlen = i;
 
 	if (skipspace(&ptr, i, req->len) == req->len)
 		return HTTP_BAD_REQUEST;
@@ -252,7 +258,7 @@ http_request_read(conn_t *c, http_request_t *req, http_response_t *res)
 	i = wordend(&ptr, HTTP_URI_MAX, req->len);	/* URI */
 	if (i == 0 || i == req->len)
 		return HTTP_BAD_REQUEST;
-	iovset(&req->uri, ptr, i);
+	uri = ptr; urilen = i;
 
 	if (skipspace(&ptr, i, req->len) == req->len)
 		return HTTP_BAD_REQUEST;
@@ -264,7 +270,7 @@ http_request_read(conn_t *c, http_request_t *req, http_response_t *res)
 		return HTTP_BAD_REQUEST;
 	}
 	ptr += 5; i -= 5;
-	iovset(&req->httpv, ptr, i);
+	htv = ptr; htvlen = i;
 	DEBUG("HTTP_VERSION: %.*s", i, ptr);
 	if (strncmp(ptr, "1.1", i)) {
 		if (!strncmp(ptr, "1.0", i)) {
@@ -274,6 +280,9 @@ http_request_read(conn_t *c, http_request_t *req, http_response_t *res)
 			return HTTP_VERSION_NOT_SUPPORTED;
 		}
 	}
+	iovset(&req->method, met, metlen);
+	iovset(&req->uri, uri, urilen);
+	iovset(&req->httpv, htv, htvlen);
 
 	return http_headers_read(c, req, res);
 }
@@ -327,17 +336,29 @@ int http_match_uri(http_request_t *req, struct iovec uri[HTTP_PARTS])
 void http_request_log(conn_t *c, http_request_t *req, http_response_t *res)
 {
 	char ts[27];
+	struct iovec dash = { "-", 1 };
+	char httpv[9] = "-";
+
+	if (!req->method.iov_len) iovcpy(&req->method, &dash);
+	if (!req->uri.iov_len) iovcpy(&req->uri, &dash);
+	if (req->httpv.iov_len)
+		snprintf(httpv, 9, "HTTP/%.*s", (int)req->httpv.iov_len, (char *)req->httpv.iov_base);
+	if (!req->referrer.iov_len) iovcpy(&req->referrer, &dash);
+	if (!req->useragent.iov_len) iovcpy(&req->useragent, &dash);
 
 	strftime(ts, 27, "%d/%b/%Y:%T %z", localtime(&req->t));
-	INFO("%s - - [%s] \"%.*s %.*s HTTP/%.*s\" %i %zu",
+	INFO("%s - - [%s] \"%.*s %.*s %s\" %i %zu \"%.*s\" \"%.*s\"",
 		c->addr,
 		ts,
 		req->method.iov_len, req->method.iov_base,
 		req->uri.iov_len, req->uri.iov_base,
-		req->httpv.iov_len, req->httpv.iov_base,
+		httpv,
 		res->code,
-		res->len
+		res->len,
+		req->referrer.iov_len, req->referrer.iov_base,
+		req->useragent.iov_len, req->useragent.iov_base
 	);
+	/* TODO: referrer */
 }
 
 http_status_code_t

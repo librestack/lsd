@@ -106,6 +106,8 @@ struct http_request_s {
 	struct iovec encoding;		/* Accept-Encoding */
 	struct iovec lang;		/* Accept-Language */
 	struct iovec cache;		/* Cache-Control */
+	struct iovec referrer;		/* Referrer */
+	struct iovec useragent;		/* User-Agent */
 	size_t len;                     /* bytes recv()'d */
 	time_t t;			/* timestamp so we have one consistent one to use */
 	char upsec;			/* Upgrade-Insecure-Requests */
