@@ -476,7 +476,7 @@ int http_sendfile(conn_t *c, char *filename, http_request_t *req, http_response_
 
 		map = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, f, 0);
 		iov_push(&res->iovs, map, sb.st_size);
-		if (!wolfSSL_writev(c->ssl, res->iovs.iov, res->iovs.idx)) {
+		if (!(ret = wolfSSL_writev(c->ssl, res->iovs.iov, res->iovs.idx))) {
 			ERRMSG(LSD_ERROR_TLS_WRITE);
 			req->close = 1;
 		}
@@ -498,11 +498,11 @@ int http_sendfile(conn_t *c, char *filename, http_request_t *req, http_response_
 			}
 		}
 		setcork(c->sock, 0);
-		if (ret > 0) {
-			res->len += (size_t)ret;
-			res->code = HTTP_OK;
-			ret = 0;
-		}
+	}
+	if (ret > 0) {
+		res->len += (size_t)ret;
+		res->code = HTTP_OK;
+		ret = 0;
 	}
 http_sendfile_free:
 	if (map) munmap(map, sb.st_size);
