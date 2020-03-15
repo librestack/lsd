@@ -690,6 +690,7 @@ int conn(conn_t *c)
 	}
 
 	while (!req.close && http_ready(c->sock)) {
+		memset(&req, 0, sizeof(http_request_t));
 		memset(&res, 0, sizeof(http_response_t));
 		err = http_request_read(c, &req, &res);
 		if (!err) err = http_request_handle(c, &req, &res);
