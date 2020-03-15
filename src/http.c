@@ -615,7 +615,7 @@ http_response(conn_t *c, http_request_t *req, http_response_t *res)
 			ptr = iovchr(req->uri, '/');
 			if (!ptr) return HTTP_BAD_REQUEST;
 			ptr++;
-			len = req->uri.iov_len + ptr - (char *)req->uri.iov_base - 1;
+			len = req->uri.iov_len + ptr - (char *)req->uri.iov_base - 2;
 			iov_push(&res->head, ptr, len);
 		}
 		else {
