@@ -664,7 +664,7 @@ int conn(conn_t *c)
 	if (!strcmp(c->proto->module, "https")) {
 		/* Initialize wolfSSL */
 		wolfSSL_Init();
-		if ((ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method())) == NULL) {
+		if ((ctx = wolfSSL_CTX_new(wolfSSLv23_server_method())) == NULL) {
 			ERROR("failed to create WOLFSSL_CTX");
 			goto conn_cleanup;
 		}
@@ -672,7 +672,7 @@ int conn(conn_t *c)
 		config_db(DB_GLOBAL, db);
 		config_get_s(db, "cert", &cert, NULL, 0);
 		config_get_s(db, "key", &key, NULL, 0);
-		if (wolfSSL_CTX_use_certificate_file(ctx, cert, SSL_FILETYPE_PEM) != SSL_SUCCESS) {
+		if (wolfSSL_CTX_use_certificate_chain_file(ctx, cert) != SSL_SUCCESS) {
 			ERROR("failed to load cert: %s", cert);
 			goto conn_cleanup;
 		}
