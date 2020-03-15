@@ -25,6 +25,7 @@
 #define __LSD_CONFIG
 
 #define WC_NO_HARDEN /* FIXME: stop wolfssl warning */
+#define WOLFSSL_TLS13 /* enable TLS 1.3 */
 #include <wolfssl/ssl.h>
 
 #include "db.h"
