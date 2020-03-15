@@ -1,0 +1,13 @@
+[Unit]
+Description=Librestack Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/usr/local/src/lsd
+ExecStart=/usr/local/sbin/lsd --config /etc/lsd.conf start
+Restart=on-failure
+StandardOutput=null
+StandardError=null
+SyslogIdentifier=lsd
