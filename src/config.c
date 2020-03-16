@@ -1096,6 +1096,7 @@ int config_process_line(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi[])
 
 int config_create_dbs(MDB_txn *txn, MDB_dbi *dbi)
 {
+	TRACE("%s()", __func__);
 	int flags = 0;
 	int err = 0;
 	char db[2];
@@ -1154,9 +1155,7 @@ int config_init(int argc, char **argv)
 {
 	TRACE("%s()", __func__);
 	int err = 0;
-	//int flags = 0;
 	char *filename = NULL;
-	//char db[2];
 	FILE *fd = NULL;
 	MDB_txn *txn = NULL;
 	MDB_dbi dbi[sizeof(config_db_idx_t)];

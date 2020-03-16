@@ -601,7 +601,6 @@ http_response(conn_t *c, http_request_t *req, http_response_t *res)
 		code = http_response_code(&res->uri[HTTP_ACTION], 8);
 		res->body = res->uri[HTTP_ARGS];
 	}
-	/* redirect(code) - HTTP redirect */
 	else if (!iovstrncmp(&res->uri[HTTP_ACTION], "redirect", 8)) {
 		code = http_response_code(&res->uri[HTTP_ACTION], 8);
 		DEBUG("RESPONSE: redirect (%i)", code);
@@ -623,7 +622,6 @@ http_response(conn_t *c, http_request_t *req, http_response_t *res)
 		}
 		iov_push(&res->head, CRLF, 2);
 	}
-	/* serve static file */
 	else if (!iovstrcmp(&res->uri[HTTP_ACTION], "static")) {
 		DEBUG("RESPONSE: static");
 		code = http_response_static(c, req, res);
@@ -654,10 +652,6 @@ int conn(conn_t *c)
 
 	res.iovs.nmemb = IOVSIZE;
 	res.head.nmemb = IOVSIZE;
-
-	/* we need to do this here, so the env is created in this process
-	 * at init() time, the module is being called by the controller, and we
-	 * can't share the env from a different process */
 	env = NULL; config_init_db();
 
 	/* handle TLS connection */
