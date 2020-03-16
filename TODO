@@ -3,6 +3,7 @@ drop privs
 IP connection logging
 better HTTP logging
 default_url
+add_header / HSTS support
 
 map out usage of MDB_env etc to ensure only using env in proc that opened it
 clean out stale readers
