@@ -27,6 +27,9 @@ export PREFIX
 LIB_PATH = $(PREFIX)/lib
 export LIB_PATH
 
+LD_LIBRARY_PATH += $(LIB_PATH)
+export LD_LIBRARY_PATH
+
 BIN_PATH = $(PREFIX)/sbin
 export BIN_PATH
 
