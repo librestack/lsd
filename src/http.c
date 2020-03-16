@@ -146,7 +146,6 @@ ssize_t http_read_line(conn_t *c, char **line, http_request_t *req)
 			/* check for newline */
 			nl = memchr(nxt, '\n', byt);
 			if (nl) {
-				DEBUG("found newline");
 				*line = nxt;
 				len = nl - nxt;
 				nxt = nl + 1;
@@ -165,6 +164,7 @@ ssize_t http_read_line(conn_t *c, char **line, http_request_t *req)
 		len = BUFLEN - ((char *)ptr - buf); /* remaining buffer space */
 
 		/* we're near the end of the buffer */
+		/* FIXME - this doesn't actually work ... */
 		if (byt && len < LINE_MAX) {
 			/* move unprocessed bytes to beginning of buffer */
 			DEBUG("shifting unprocessed bytes");
