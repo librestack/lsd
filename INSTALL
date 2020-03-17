@@ -1,0 +1,22 @@
+# INSTALL
+
+## Installing from source
+
+```
+make
+make install
+```
+
+## WolfSSL (required for http module)
+
+NB: requires WolfSSL > 4.0.0 for TLS 1.3 support
+when compiling from source, use:
+
+```./configure --enable-secure-renegotiation --enable-tls13 --disable-aescbc```
+
+test with https://www.ssllabs.com/ssltest/analyze.html
+
+## Ubuntu 18.04 LTS
+
+The following packages are required:
+```apt-get install liblmdb-dev libwolfssl-dev```
