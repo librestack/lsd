@@ -20,6 +20,8 @@
  * along with this program (see the file COPYING in the distribution).
  * If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef __LSD_STR_H
+#define __LSD_STR_H 1
 
 #include <stddef.h>
 
@@ -32,3 +34,5 @@ size_t wordend(char **ptr, size_t ptrmax, size_t maxlen);
 
 /* advance ptr to next word, return offset */
 size_t skipspace(char **ptr, size_t i, size_t maxlen);
+
+#endif /* __LSD_STR_H */
