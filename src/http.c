@@ -26,6 +26,7 @@
 #include "iov.h"
 #include "log.h"
 #include "str.h"
+#include "websocket.h"
 #include <assert.h>
 #include <ctype.h>
 #include <fcntl.h>
@@ -302,6 +303,93 @@ int http_response_send(conn_t *c, http_request_t *req, http_response_t *res)
 	}
 	setcork(c->sock, 0);
 	return 0;
+}
+
+int handler_upgrade_connection_check(http_request_t *r)
+{
+	char *h;
+	ws_protocol_t proto = WS_PROTOCOL_NONE;
+
+	/* RFC 6455 */
+	if (strcmp(r->method, "GET") != 0) {
+		syslog(LOG_ERR, "Invalid method '%s' for client upgrade", r->method);
+		return HANDLER_UPGRADE_INVALID_METHOD;
+	}
+	if (strcmp(r->httpv, "1.1") != 0) {
+		syslog(LOG_ERR, "Upgrade unsupported in HTTP version '%s'", r->httpv);
+		return HANDLER_UPGRADE_INVALID_HTTP_VERSION;
+	}
+	h = http_get_header(request, "Host");
+	if (!h) {
+		syslog(LOG_ERR, "Host header required for client upgrade");
+		return HANDLER_UPGRADE_NO_HOST_HEADER;
+	}
+	h = http_get_header(request, "Upgrade");
+	if (strcasestr(h, "websocket") == NULL) {
+		syslog(LOG_ERR, "Unknown upgrade type '%s' requested", h);
+		return HANDLER_UPGRADE_INVALID_UPGRADE;
+	}
+	h = http_get_header(request, "Connection");
+	if (strcasestr(h, "upgrade") == NULL) {
+		syslog(LOG_ERR, "'Connection: upgrade' required");
+		return HANDLER_UPGRADE_INVALID_CONN;
+	}
+	h = http_get_header(request, "Sec-WebSocket-Key");
+	if (!h) {
+		syslog(LOG_ERR, "Sec-WebSocket-Key required");
+		return HANDLER_UPGRADE_MISSING_KEY;
+	}
+	h = http_get_header(request, "Sec-WebSocket-Version");
+	if (strcmp(h, "13") != 0) {
+		syslog(LOG_ERR, "Sec-WebSocket-Version != 13");
+		return HANDLER_UPGRADE_INVALID_WEBSOCKET_VERSION;
+	}
+	h = http_get_header(request, "Sec-WebSocket-Protocol");
+	if (h) {
+		syslog(LOG_DEBUG, "Sec-WebSocket-Protocol: '%s' requested", h);
+		proto = ws_select_protocol(h);
+		if (proto == WS_PROTOCOL_INVALID) {
+			syslog(LOG_DEBUG, "Unsupported websocket protocol requested");
+			return HANDLER_INVALID_WEBSOCKET_PROTOCOL;
+		}
+	}
+	syslog(LOG_DEBUG, "protocol selected: %s", ws_protocol_name(proto));
+	ws_proto = proto;
+	h = http_get_header(request, "Sec-WebSocket-Extensions");
+	if (h)
+		syslog(LOG_DEBUG, "Sec-WebSocket-Extensions: '%s' requested", h);
+
+	return 0;
+}
+
+http_status_code_t response_upgrade(int sock, url_t *u)
+{
+	unsigned char md[SHA_DIGEST_LENGTH];
+	char *header;
+	char *ctok;
+	char *stok;
+	char *status;
+	unsigned char b64[SHA_DIGEST_LENGTH * 4 / 3];
+
+	ctok = http_get_header(request, "Sec-WebSocket-Key");
+	asprintf(&stok, "%s258EAFA5-E914-47DA-95CA-C5AB0DC85B11", ctok);
+	SHA1((unsigned char *)stok, strlen(stok), md);
+	free(stok);
+	EVP_EncodeBlock(b64, md, SHA_DIGEST_LENGTH);
+	asprintf(&header, "Sec-WebSocket-Accept: %s\r\n", b64);
+
+	status = get_status(HTTP_SWITCHING_PROTOCOLS).status;
+	snd_string(sock, "HTTP/1.1 %i %s\r\n", HTTP_SWITCHING_PROTOCOLS, status);
+	snd_string(sock, "Upgrade: websocket\r\n");
+	snd_string(sock, "Connection: Upgrade\r\n");
+	if (ws_proto > 0)
+		snd_string(sock, "Sec-WebSocket-Protocol: %s\r\n", ws_protocol_name(ws_proto));
+	snd_string(sock, header);
+	free(header);
+	snd_blank_line(sock);
+	setcork(sock, 0);
+
+	return HTTP_SWITCHING_PROTOCOLS;
 }
 
 char * unpackiov(char *ptr, struct iovec *iov)

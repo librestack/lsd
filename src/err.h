@@ -4,7 +4,7 @@
  *
  * this file is part of LIBRESTACK
  *
- * Copyright (c) 2012-2019 Brett Sheffield <bacs@librecast.net>
+ * Copyright (c) 2012-2020 Brett Sheffield <bacs@librecast.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,7 +41,26 @@
 	X(LSD_ERROR_LOAD_MODULE,	"Unable to load module") \
 	X(LSD_ERROR_DB,			"Database error") \
 	X(LSD_ERROR_TLS_READ,		"TLS read error") \
-	X(LSD_ERROR_TLS_WRITE,		"TLS write error")
+	X(LSD_ERROR_TLS_WRITE,		"TLS write error") \
+	X(LSD_ERROR_WEBSOCKET_RSVBITSET,           "(websocket) Reserved bit set") \
+	X(LSD_ERROR_WEBSOCKET_BAD_OPCODE,          "(websocket) Bad opcode") \
+	X(LSD_ERROR_WEBSOCKET_UNMASKED_DATA,       "(websocket) Unmasked client data") \
+	X(LSD_ERROR_WEBSOCKET_CLOSE_CONNECTION,    "(websocket) Connection close requested") \
+	X(LSD_ERROR_WEBSOCKET_FRAGMENTED_CONTROL,  "(websocket) Fragmented control frame") \
+	X(LSD_ERROR_WEBSOCKET_UNEXPECTED_CONTINUE, "(websocket) Unexpected continuation frame") \
+	X(LSD_ERROR_WEBSOCKET_UNEXPECTED_PONG,     "(websocket) Unexpected pong frame") \
+	X(LSD_ERROR_LIBRECAST_CONTEXT_NULL,        "(librecast) Operation on null context") \
+	X(LSD_ERROR_LIBRECAST_CHANNEL_NOT_EXIST,   "(librecast) No such channel") \
+	X(LSD_ERROR_LIBRECAST_CHANNEL_NOT_SELECTED, "(librecast) No channel selected") \
+	X(LSD_ERROR_LIBRECAST_CHANNEL_NOT_CREATED, "(librecast) Unable to create channel") \
+	X(LSD_ERROR_LIBRECAST_CHANNEL_NOT_JOINED,  "(librecast) Unable to join channel") \
+	X(LSD_ERROR_LIBRECAST_LISTEN_FAIL,         "(librecast) Listen failed on socket") \
+	X(LSD_ERROR_LIBRECAST_NO_SOCKET,           "(librecast) No socket") \
+	X(LSD_ERROR_LIBRECAST_OPCODE_INVALID,      "(librecast) Invalid opcode") \
+	X(LSD_ERROR_LIBRECAST_SOCKET_NOT_CREATED,  "(librecast) Unable to create socket") \
+	X(LSD_ERROR_LIBRECAST_INVALID_SOCKET_ID,   "(librecast) Invalid socket id") \
+	X(LSD_ERROR_LIBRECAST_INVALID_PARAMS,      "(librecast) Invalid parameters to function")
+
 #undef X
 
 #define LSD_ERROR_MSG(name, msg) case name: return msg;
