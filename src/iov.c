@@ -4,7 +4,7 @@
  *
  * this file is part of LIBRESTACK
  *
- * Copyright (c) 2012-2019 Brett Sheffield <bacs@librecast.net>
+ * Copyright (c) 2012-2020 Brett Sheffield <bacs@librecast.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -146,6 +146,23 @@ int iov_pushf(iovstack_t *iovs, char *str, char *fmt, ...)
 int iov_pushv(iovstack_t *iovs, struct iovec *iov)
 {
 	return iov_push(iovs, iov->iov_base, iov->iov_len);
+}
+
+size_t iov_size(struct iovec *iov, size_t len)
+{
+	size_t iovsize;
+
+	for (iovsize = 0; len > 0; len--) {
+		iovsize += iov->iov_len;
+		iov++;
+	}
+
+	return iovsize;
+}
+
+size_t iovs_size(iovstack_t *iovs)
+{
+	return iov_size(iovs->iov, iovs->idx);
 }
 
 void iovs_clear(iovstack_t *iovs)

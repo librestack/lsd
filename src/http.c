@@ -492,11 +492,14 @@ int http_sendfile(conn_t *c, char *filename, http_request_t *req, http_response_
 	if (c->ssl) {
 		DEBUG("TLS ENABLED");
 
-		/* FIXME: wolfssl casts size_t to int, imposing a 2GB filesize limit */
-		assert(sb.st_size <= INT_MAX);
-
 		map = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, f, 0);
 		iov_push(&res->iovs, map, sb.st_size);
+
+		DEBUG("iovs_size = %zu", iovs_size(&res->iovs));
+
+		/* FIXME: wolfssl casts size_t to int, imposing a 2GB filesize limit */
+		assert(iovs_size(&res->iovs) <= INT_MAX);
+
 		if (!(ret = wolfSSL_writev(c->ssl, res->iovs.iov, res->iovs.idx))) {
 			ERRMSG(LSD_ERROR_TLS_WRITE);
 			req->close = 1;
