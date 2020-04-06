@@ -42,6 +42,15 @@
 	X(LSD_ERROR_DB,			"Database error") \
 	X(LSD_ERROR_TLS_READ,		"TLS read error") \
 	X(LSD_ERROR_TLS_WRITE,		"TLS write error") \
+	X(LSD_ERROR_NOT_IMPLEMENTED,               "Not implemented") \
+	X(HANDLER_UPGRADE_INVALID_METHOD,	   "Invalid method for client upgrade") \
+	X(HANDLER_UPGRADE_INVALID_HTTP_VERSION,    "Upgrade unsupported in HTTP version") \
+	X(HANDLER_UPGRADE_NO_HOST_HEADER,	   "Host header required for client upgrade") \
+	X(HANDLER_UPGRADE_INVALID_UPGRADE,	   "Unknown upgrade type requested") \
+	X(HANDLER_UPGRADE_INVALID_CONN,		   "'Connection: upgrade' required") \
+	X(HANDLER_UPGRADE_MISSING_KEY,		   "Sec-WebSocket-Key required") \
+	X(HANDLER_UPGRADE_INVALID_WEBSOCKET_VERSION, "Sec-WebSocket-Version invalid") \
+	X(HANDLER_INVALID_WEBSOCKET_PROTOCOL,	   "Unsupported websocket protocol requested") \
 	X(LSD_ERROR_WEBSOCKET_RSVBITSET,           "(websocket) Reserved bit set") \
 	X(LSD_ERROR_WEBSOCKET_BAD_OPCODE,          "(websocket) Bad opcode") \
 	X(LSD_ERROR_WEBSOCKET_UNMASKED_DATA,       "(websocket) Unmasked client data") \

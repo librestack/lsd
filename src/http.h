@@ -20,9 +20,12 @@
  * along with this program (see the file COPYING in the distribution).
  * If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef __LSD_HTTP_H
+#define __LSD_HTTP_H 1
 
 #include "config.h"
 #include "iov.h"
+#include <stdarg.h>
 #include <time.h>
 
 #define HTTP_DB_URI "http_uri"
@@ -106,7 +109,13 @@ struct http_request_s {
 	struct iovec encoding;		/* Accept-Encoding */
 	struct iovec lang;		/* Accept-Language */
 	struct iovec cache;		/* Cache-Control */
+	struct iovec connection;	/* Connection */
 	struct iovec referrer;		/* Referrer */
+	struct iovec secwebsocketextensions;	/* Sec-WebSocket-Extensions */
+	struct iovec secwebsocketkey;		/* Sec-WebSocket-Key */
+	struct iovec secwebsocketprotocol;	/* Sec-WebSocket-Protocol */
+	struct iovec secwebsocketversion;	/* Sec-WebSocket-Version */
+	struct iovec upgrade;		/* Upgrade */
 	struct iovec useragent;		/* User-Agent */
 	size_t len;                     /* bytes recv()'d */
 	time_t t;			/* timestamp so we have one consistent one to use */
@@ -125,6 +134,21 @@ struct http_response_s {
 	http_status_code_t code;	/* HTTP status code */
 };
 
+/* set TCP cork */
+int setcork(int sock, int state);
+
+/* receive data */
+size_t rcv(conn_t *c, void *data, size_t len, int flags);
+
+/* send data */
+ssize_t snd(conn_t *c, void *data, size_t len, int flags);
+
+/* send CRLF */
+ssize_t snd_blank_line(conn_t *c);
+
+/* send formatted string */
+ssize_t snd_string(conn_t *c, char *str, ...);
+
 /* handle new connection */
 int conn(conn_t *c);
 
@@ -139,3 +163,5 @@ void finit();
 
 /* initialize */
 int init();
+
+#endif /* __LSD_HTTP_H */

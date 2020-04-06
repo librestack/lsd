@@ -19,13 +19,13 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 
-COMMON_OBJECTS = config.o db.o err.o iov.o log.o str.o websocket.o
+COMMON_OBJECTS = config.o db.o err.o iov.o log.o str.o
 OBJECTS = $(PROGRAM).o handler.o $(COMMON_OBJECTS)
 MODULES = echo.so http.so https.so
 
-CFLAGS += -fPIC
+CFLAGS += -fPIC -Wno-unused-parameter
 
-LDLIBS = -ldl -lrt -llmdb
+LDLIBS = -ldl -lrt -llmdb -pthread -llibrecast
 
 .PHONY:		all clean
 
@@ -36,7 +36,7 @@ lsd:		$(OBJECTS)
 echo.so:	echo.o $(COMMON_OBJECTS)
 		$(CC) -shared -fPIC -o $@  $^
 
-http.so:	http.o $(COMMON_OBJECTS)
+http.so:	http.o $(COMMON_OBJECTS) librecast.o websocket.o
 		$(CC) -shared -fPIC -o $@  $^ -lwolfssl
 
 https.so:	http.so

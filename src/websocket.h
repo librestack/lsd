@@ -61,8 +61,8 @@ typedef struct ws_frame_t {
 #undef X
 
 #define WS_PROTOCOL(k, proto, fun) case proto: return k;
-#define WS_PROTOCOL_FUN(k, proto, fun) case proto: return fun(sock, f);
-#define WS_PROTOCOL_SELECT(k, proto, fun) if (strcmp(protos[i], k) == 0) return proto;
+#define WS_PROTOCOL_FUN(k, proto, fun) case proto: return fun(c, f);
+#define WS_PROTOCOL_SELECT(k, proto, fun) if (strcmp(ptr, k) == 0) return proto;
 
 typedef enum {
 	WS_OPCODE_NONCONTROL,
@@ -90,41 +90,41 @@ typedef enum {
 #undef X
 
 #define WS_OPCODE_DESC(code, type, desc, f) case code: return desc;
-#define WS_OPCODE_FUN(code, type, desc, fun) case code: err = fun(sock, f); break;
+#define WS_OPCODE_FUN(code, type, desc, fun) case code: err = fun(c, f); break;
 
 extern int ws_proto;
 
 /* handle client close request */
-int ws_do_close(int sock, ws_frame_t *f);
+int ws_do_close(conn_t *c, ws_frame_t *f);
 
 /* handle data frames */
-int ws_do_data(int sock, ws_frame_t *f);
+int ws_do_data(conn_t *c, ws_frame_t *f);
 
 /* do nothing, successfully */
-int ws_do_noop(int sock, ws_frame_t *f);
+int ws_do_noop(conn_t *c, ws_frame_t *f);
 
 /* handle client ping */
-int ws_do_ping(int sock, ws_frame_t *f);
+int ws_do_ping(conn_t *c, ws_frame_t *f);
 
 /* handle client pong reply */
-int ws_do_pong(int sock, ws_frame_t *f);
+int ws_do_pong(conn_t *c, ws_frame_t *f);
 
 /* default protocol handler for client data */
-int ws_handle_client_data(int sock, ws_frame_t *f);
+int ws_handle_client_data(conn_t *c, ws_frame_t *f);
 
 /* websocket request handler */
-int ws_handle_request(int sock);
+int ws_handle_request(conn_t *c);
 
 /* return protocol name from number */
 char *ws_protocol_name(ws_protocol_t proto);
 
 /* read websocket framing protocol */
-int ws_read_request(int sock, ws_frame_t **f);
+int ws_read_request(conn_t *c, ws_frame_t **f);
 
 /* return the first matching protocol we support */
 int ws_select_protocol(char *header);
 
 /* send some data to client, return bytes sent or -1 (error) */
-ssize_t ws_send(int sock, ws_opcode_t opcode, void *data, size_t len);
+ssize_t ws_send(conn_t *c, ws_opcode_t opcode, void *data, size_t len);
 
 #endif /* __WEBSOCKET_H__ */

@@ -23,6 +23,7 @@
 
 #include "err.h"
 #include "handler.h"
+#include "http.h"
 #include "librecast.h"
 #include "log.h"
 #include "string.h"
@@ -34,24 +35,22 @@
 #include <string.h>
 #include <unistd.h>
 
+int ws_proto = WS_PROTOCOL_INVALID;
+
 typedef struct ws_frame_header_t {
 	uint8_t f1;
 	uint8_t f2;
 } ws_frame_header_t;
 
-int ws_do_close(int sock, ws_frame_t *f)
+int ws_do_close(conn_t *c, ws_frame_t *f)
 {
-	(void) sock;
-	(void) f;
 	DEBUG("(websocket) CLOSE");
 	/* TODO: handle connection close reasons */
 	return LSD_ERROR_WEBSOCKET_CLOSE_CONNECTION;
 }
 
-int ws_do_data(int sock, ws_frame_t *f)
+int ws_do_data(conn_t *c, ws_frame_t *f)
 {
-	(void) sock;
-	(void) f;
 	DEBUG("(websocket) protocol: %s", ws_protocol_name(ws_proto));
 	switch (ws_proto) {
 		WS_PROTOCOLS(WS_PROTOCOL_FUN)
@@ -59,33 +58,28 @@ int ws_do_data(int sock, ws_frame_t *f)
 	return 0;
 }
 
-int ws_do_noop(int sock, ws_frame_t *f)
+int ws_do_noop(conn_t *c, ws_frame_t *f)
 {
-	(void) sock;
-	(void) f;
 	DEBUG("(websocket) NOOP");
 	return 0;
 }
 
-int ws_do_ping(int sock, ws_frame_t *f)
+int ws_do_ping(conn_t *c, ws_frame_t *f)
 {
 	DEBUG("(websocket) PING");
-	ws_send(sock, WS_OPCODE_PONG, f->data, f->len);
+	ws_send(c, WS_OPCODE_PONG, f->data, f->len);
 	return 0;
 }
 
-int ws_do_pong(int sock, ws_frame_t *f)
+int ws_do_pong(conn_t *c, ws_frame_t *f)
 {
-	(void) sock;
-	(void) f;
 	/* TODO: handle client reply to our PING */
 	DEBUG("(websocket) PONG");
 	return 0;
 }
 
-int ws_handle_client_data(int sock, ws_frame_t *f)
+int ws_handle_client_data(conn_t *c, ws_frame_t *f)
 {
-	(void) sock;
 	switch (f->opcode) {
 	case 0x0:
 		DEBUG("(websocket) DATA (continuation frame)");
@@ -103,12 +97,12 @@ int ws_handle_client_data(int sock, ws_frame_t *f)
 	return 0;
 }
 
-int ws_handle_request(int sock)
+int ws_handle_request(conn_t *c)
 {
 	int err;
 	ws_frame_t *f = NULL;
 
-	err = ws_read_request(sock, &f);
+	err = ws_read_request(c, &f);
 	if (err == 0) {
 	        switch (f->opcode) {
 			WS_OPCODES(WS_OPCODE_FUN)
@@ -139,7 +133,7 @@ char *ws_protocol_name(ws_protocol_t proto)
 	return WS_PROTOCOL_NONE;
 }
 
-int ws_read_request(int sock, ws_frame_t **ret)
+int ws_read_request(conn_t *c, ws_frame_t **ret)
 {
 	ws_frame_t *f;
 	ws_frame_header_t *fh;
@@ -152,7 +146,7 @@ int ws_read_request(int sock, ws_frame_t **ret)
 	/* read websocket header */
 	f = calloc(1, sizeof(struct ws_frame_t));
 	fh = calloc(1, sizeof(struct ws_frame_header_t));
-	len = rcv(sock, fh, 2, 0);
+	len = rcv(c, fh, 2, 0);
 	DEBUG("(websocket) %i bytes read (header)", (int)len);
 
 	/* check some bit flags */
@@ -164,12 +158,15 @@ int ws_read_request(int sock, ws_frame_t **ret)
 	f->mask = (fh->f2 & 0x80) >> 7;
 	f->len = fh->f2 & 0x7f;
 
-	if (f->fin)
+	if (f->fin) {
 		DEBUG("(websocket) FIN");
-	else if (f->opcode > 0x7)
-		return err_log(LOG_ERROR, LSD_ERROR_WEBSOCKET_FRAGMENTED_CONTROL);
-	else
+	}
+	else if (f->opcode > 0x7) {
+		FAIL(LSD_ERROR_WEBSOCKET_FRAGMENTED_CONTROL);
+	}
+	else {
 		DEBUG("(websocket) fragmented frame received");
+	}
 
 	if (f->rsv1) {
 		DEBUG("(websocket) RSV1");
@@ -221,26 +218,26 @@ int ws_read_request(int sock, ws_frame_t **ret)
 	/* get payload length */
 	if (f->len == 126) {
 		/* 16 bit extended payload length */
-		len = rcv(sock, &(f->len), 2, 0);
+		len = rcv(c, &(f->len), 2, 0);
 		DEBUG("(websocket) %li bytes read (length)", len);
 		f->len = ntohs(f->len);
 	}
 	else if (f->len == 127) {
 		/* 64 bit extra specially extended payload length of great wonderfulness */
-		len = rcv(sock, &(f->len), 8, 0);
+		len = rcv(c, &(f->len), 8, 0);
 		DEBUG("(websocket) %li bytes read (length)", len);
 		f->len = ntohll(f->len);
 	}
 	DEBUG("(websocket) length: %u", (unsigned int)f->len);
 
 	/* get payload mask */
-	len = rcv(sock, &(f->maskkey), 4, 0);
+	len = rcv(c, &(f->maskkey), 4, 0);
 	DEBUG("(websocket) %i bytes read (mask)", (int)len);
 	DEBUG("(websocket) mask: %02x", ntohl(f->maskkey));
 
 	/* read payload */
 	data = calloc(1, f->len);
-	len = rcv(sock, data, f->len, 0);
+	len = rcv(c, data, f->len, 0);
 	DEBUG("(websocket) %i bytes read (payload)", (int)len);
 
 	/* unmask payload */
@@ -262,23 +259,18 @@ int ws_read_request(int sock, ws_frame_t **ret)
 
 int ws_select_protocol(char *header)
 {
-	int i = 0;
-	int j = 0;
-	char *keys = strdup(header);
-	char **protos;
+	char *ptr, *tok;
 
 	/* return the first matching protocol we support */
-	protos = tokenize(&j, &keys, ",");
-	for (i = 0; i < j; i++) {
-		DEBUG("Trying protocol: %s", protos[i]);
+	for (tok = header; (ptr = strtok(tok, ",")); tok = NULL) {
+		DEBUG("Trying protocol: %s", ptr);
 		WS_PROTOCOLS(WS_PROTOCOL_SELECT)
 	}
-	free(keys);
 
 	return WS_PROTOCOL_INVALID;
 }
 
-ssize_t ws_send(int sock, ws_opcode_t opcode, void *data, size_t len)
+ssize_t ws_send(conn_t *c, ws_opcode_t opcode, void *data, size_t len)
 {
 	uint16_t f = 0;
 	uint16_t e16len = 0;
@@ -303,28 +295,28 @@ ssize_t ws_send(int sock, ws_opcode_t opcode, void *data, size_t len)
 	}
 	f = htons(f);
 
-	setcork(sock, 1);
-	if ((bytes = snd(sock, &f, 2, 0)) < 0)
+	setcork(c->sock, 1);
+	if ((bytes = snd(c, &f, 2, 0)) < 0)
 		return -1;
 	sent += bytes;
 
 	if (e16len) {
 		e16len = htons(e16len);
-		if ((bytes = snd(sock, &e16len, 2, 0)) < 0)
+		if ((bytes = snd(c, &e16len, 2, 0)) < 0)
 			return -1;
 		sent += bytes;
 	}
 	else if (e64len) {
 		e64len = htobe64(e64len);
-		if ((bytes = snd(sock, &e64len, 8, 0)) < 0)
+		if ((bytes = snd(c, &e64len, 8, 0)) < 0)
 			return -1;
 		sent += bytes;
 	}
 
-	if ((bytes = snd(sock, data, len, 0)) < 0)
+	if ((bytes = snd(c, data, len, 0)) < 0)
 		return -1;
 	sent += bytes;
-	setcork(sock, 0);
+	setcork(c->sock, 0);
 	DEBUG("%i bytes sent", sent);
 
 	return sent;
