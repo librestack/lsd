@@ -37,7 +37,7 @@ echo.so:	echo.o $(COMMON_OBJECTS)
 		$(CC) -shared -fPIC -o $@  $^
 
 http.so:	http.o $(COMMON_OBJECTS) librecast.o websocket.o
-		$(CC) -shared -fPIC -o $@  $^ -lwolfssl
+		$(CC) -shared -fPIC -o $@  $^ -lwolfssl $(LDLIBS)
 
 https.so:	http.so
 		ln -s http.so https.so

@@ -428,7 +428,7 @@ int handler_upgrade_connection_check(http_request_t *r)
 	return 0;
 }
 
-http_status_code_t response_upgrade(conn_t *c, http_request_t *req, uri_t *u)
+http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 {
 	unsigned char md[SHA_DIGEST_LENGTH];
 	char *header;
@@ -733,7 +733,6 @@ http_response_static(conn_t *c, http_request_t *req, http_response_t *res)
 		i = iov_matchlen(&req->uri, &res->uri[HTTP_PATH]);
 		trail.iov_base = req->uri.iov_base + i;
 		trail.iov_len = req->uri.iov_len - i;
-
 		len = snprintf(NULL, 0, "%.*s%.*s",
 			(int)res->uri[HTTP_ARGS].iov_len,
 			(char *)res->uri[HTTP_ARGS].iov_base,
@@ -803,7 +802,6 @@ http_response(conn_t *c, http_request_t *req, http_response_t *res)
 }
 
 /* Handle new connection */
-//int conn(int sock, proto_t *p)
 int conn(conn_t *c)
 {
 	http_response_t res = {};
@@ -850,9 +848,17 @@ int conn(conn_t *c)
 	}
 
 	while (!req.close && http_ready(c->sock)) {
+		if (ws_proto != WS_PROTOCOL_INVALID) {
+			DEBUG("Request on established websocket");
+			if (!ws_handle_request(c)) req.close = 1;
+			continue;
+		}
 		memset(&req, 0, sizeof(http_request_t));
 		memset(&res, 0, sizeof(http_response_t));
 		err = http_request_read(c, &req, &res);
+		if (!err && req.upgrade.iov_len && handler_upgrade_connection_check(&req)) {
+			err = response_upgrade(c, &req);
+		}
 		if (!err) err = http_request_handle(c, &req, &res);
 		if (!err) err = http_response(c, &req, &res);
 		if (err) {
