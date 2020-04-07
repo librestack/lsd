@@ -704,8 +704,9 @@ http_status_code_t
 http_response_static(conn_t *c, http_request_t *req, http_response_t *res)
 {
 	char *filename = NULL;
-	char *ptr;
+	struct iovec trail;
 	size_t len;
+	size_t i;
 	int err = 0;
 
 	/* config missing args */
@@ -728,20 +729,20 @@ http_response_static(conn_t *c, http_request_t *req, http_response_t *res)
 			filename = iovdup(&res->uri[HTTP_ARGS]);
 			goto sendnow;
 		}
-		/* wildcard match & path is a directory, append filename */
-		ptr = iovrchr(req->uri, '/', &len);
-		len = req->uri.iov_len - len - 1;
-		if (!ptr) return HTTP_NOT_FOUND;
-		++ptr;
+		/* wildcard match & path is a directory, append trailing chars */
+		i = iov_matchlen(&req->uri, &res->uri[HTTP_PATH]);
+		trail.iov_base = req->uri.iov_base + i;
+		trail.iov_len = req->uri.iov_len - i;
+
 		len = snprintf(NULL, 0, "%.*s%.*s",
 			(int)res->uri[HTTP_ARGS].iov_len,
 			(char *)res->uri[HTTP_ARGS].iov_base,
-			(int)len, ptr);
+			(int)trail.iov_len, (char *)trail.iov_base);
 		filename = malloc(len + 1);
 		snprintf(filename, len + 1, "%.*s%.*s",
 			(int)res->uri[HTTP_ARGS].iov_len,
 			(char *)res->uri[HTTP_ARGS].iov_base,
-			(int)len, ptr);
+			(int)trail.iov_len, (char *)trail.iov_base);
 	}
 	else return HTTP_NOT_FOUND;
 	if (filename) {

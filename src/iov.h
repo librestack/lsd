@@ -35,6 +35,7 @@ struct iovstack_s {
 };
 
 int iovmatch(struct iovec *pattern, struct iovec *string, int flags);
+size_t iov_matchlen(struct iovec *path, struct iovec *pattern);
 int iovcmp(struct iovec *c1, struct iovec *c2);
 int iovstrcmp(struct iovec *k, void *ptr);
 int iovstrncmp(struct iovec *k, void *ptr, size_t len);

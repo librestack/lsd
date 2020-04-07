@@ -40,6 +40,17 @@ int iovmatch(struct iovec *pattern, struct iovec *string, int flags)
 	return ret;
 }
 
+/* return length of matching iovecs */
+size_t iov_matchlen(struct iovec *path, struct iovec *pattern)
+{
+	size_t i;
+	for (i = 0; i < pattern->iov_len; i++) {
+		if (((char *)pattern->iov_base)[i] != ((char *)path->iov_base)[i])
+			break;
+	}
+	return i;
+}
+
 int iovcmp(struct iovec *c1, struct iovec *c2)
 {
 	if (c1->iov_len < c2->iov_len)
