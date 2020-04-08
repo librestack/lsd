@@ -372,9 +372,7 @@ int handler_upgrade_connection_check(http_request_t *r)
 	char *h;
 	int proto = WS_PROTOCOL_NONE;
 
-	DEBUG("handler_upgrade_connection_check()");
-
-	loglevel = 127;
+	TRACE("%s()", __func__);
 
 	/* RFC 6455 */
 	if (iovstrcmp(&r->method, "GET")) {
@@ -427,14 +425,14 @@ int handler_upgrade_connection_check(http_request_t *r)
 			r->secwebsocketextensions.iov_base);
 	}
 
-	DEBUG("handler_upgrade_connection_check() done");
+	TRACE("%s() done", __func__);
 
 	return 0;
 }
 
 http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 {
-	DEBUG("response_upgrade");
+	TRACE("%s()", __func__);
 
 	byte b64[SHA_DIGEST_SIZE * 4 / 3];
 	unsigned char md[SHA_DIGEST_SIZE];
@@ -466,7 +464,7 @@ http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 	snd_blank_line(c);
 	setcork(c->sock, 0);
 
-	DEBUG("response_upgrade done");
+	TRACE("%s() done", __func__);
 
 	return HTTP_SWITCHING_PROTOCOLS;
 }
