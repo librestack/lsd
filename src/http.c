@@ -858,7 +858,7 @@ int conn(conn_t *c)
 		DEBUG("ws_proto = %i", ws_proto);
 		if (ws_proto != WS_PROTOCOL_INVALID) {
 			DEBUG("Request on established websocket");
-			if (!ws_handle_request(c)) req.close = 1;
+			if (ws_handle_request(c)) req.close = 1;
 			continue;
 		}
 		memset(&req, 0, sizeof(http_request_t));
