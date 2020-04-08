@@ -542,7 +542,7 @@ int lcast_cmd_socket_listen(conn_t *c, lcast_frame_t *req, char *payload)
 	if ((s = lcast_socket_byid(req->id)) == NULL)
 		FAIL(LSD_ERROR_LIBRECAST_INVALID_SOCKET_ID);
 
-	websock = c; /* FIXME */
+	websock = c;
 	s->token = req->token;
 	lc_socket_listen(s->sock, lcast_recv, lcast_recv_err);
 

@@ -85,18 +85,14 @@ int handle_connection(int idx, int sock)
 		c.proto = (proto_t *)val.mv_data;
 		mod = (module_t *)config_module(c.proto->module, strlen(c.proto->module));
 		if (!mod) goto handle_connection_err;
-		/* TODO: check module TLS settings */
 		int (* conn)(conn_t*);
 		conn = dlsym(mod->ptr, "conn");
 		if (conn) {
-		/* TODO: handle return codes - provide different facilities to different plugins */
 			err = conn(&c);
-			/* TODO if (err == NEW_LINE_PLEASE) etc. */
 			goto handle_connection_exit;
 		}
 		else goto handle_connection_err;
 	}
-	/* FIXME: this is a mess */
 	config_yield_free();
 	FAIL(LSD_ERROR_NOHANDLER);
 handle_connection_exit:
@@ -114,7 +110,7 @@ int handler_get_socket(int n, fd_set fds[], int *sock)
 	for (int i = 0; i < n; i++) {
 		for (int j = 0; j < 3; j++) {
 			if (FD_ISSET(socks[i], &fds[j])) {
-				*sock = accept(socks[i], NULL, NULL); /* TODO: EGAIN */
+				*sock = accept(socks[i], NULL, NULL);
 				if (*sock == -1) {
 					switch (errno) {
 					case EBADF:
@@ -130,7 +126,7 @@ int handler_get_socket(int n, fd_set fds[], int *sock)
 						/* TODO: not SOCK_STREAM */
 						DEBUG("accept(): not SOCK_STREAM");
 						break;
-					default: /* FIXME FIXME FIXME */
+					default:
 						perror("accept()");
 					}
 				}

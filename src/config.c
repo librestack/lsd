@@ -64,7 +64,7 @@ int config_mime_load()
 		mdb_txn_abort(txn);
 		return LSD_ERROR_DB;
 	}
-	fd = fopen("/home/bacs/dev/lsd/src/mime.types", "r"); /* FIXME */
+	fd = fopen("/var/cache/lsd/mime.types", "r");
 	if (!fd) {
 		ERROR("unable to open mime.types");
 		mdb_txn_abort(txn);
