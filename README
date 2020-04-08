@@ -12,3 +12,7 @@ not yet available in LSD.
 
 LSD was created to work with and be the basis for various other Librestack /
 Librecast projects.
+
+## Modules
+
+- http.so - simple https 1.1 webserver module with websockets support
