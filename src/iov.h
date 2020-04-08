@@ -39,6 +39,8 @@ size_t iov_matchlen(struct iovec *path, struct iovec *pattern);
 int iovcmp(struct iovec *c1, struct iovec *c2);
 int iovstrcmp(struct iovec *k, void *ptr);
 int iovstrncmp(struct iovec *k, void *ptr, size_t len);
+int iovstrcasecmp(struct iovec *c1, struct iovec *c2);
+int iovstrtokmatch(struct iovec *c1, char *c2, const char *delim);
 void *iovchr(struct iovec iov, int c);
 void *iovrchr(struct iovec iov, int c, size_t *len);
 struct iovec *iovcpy(struct iovec *dst, struct iovec *src);

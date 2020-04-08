@@ -121,6 +121,8 @@ struct http_request_s {
 	time_t t;			/* timestamp so we have one consistent one to use */
 	char upsec;			/* Upgrade-Insecure-Requests */
 	char close;                     /* Connection: close */
+	char conn_keepalive;		/* Connection: keep-alive */
+	char conn_upgrade;		/* Connection: upgrade */
 };
 
 typedef struct http_response_s http_response_t;
@@ -133,6 +135,8 @@ struct http_response_s {
 	http_encoding_t encoding;	/* gzip, deflate etc. */
 	http_status_code_t code;	/* HTTP status code */
 };
+
+char *http_phrase(http_status_code_t code);
 
 /* set TCP cork */
 int setcork(int sock, int state);

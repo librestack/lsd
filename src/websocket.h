@@ -33,9 +33,7 @@
 #define WS_PROTOCOL_INVALID -1
 typedef enum {
 	WS_PROTOCOL_NONE = 0,
-#ifndef _NLIBRECAST
 	WS_PROTOCOL_LIBRECAST = 1
-#endif
 } ws_protocol_t;
 
 typedef struct ws_frame_t {
@@ -50,14 +48,9 @@ typedef struct ws_frame_t {
 	void *data;
 } ws_frame_t;
 
-#ifdef _NLIBRECAST
-#define WS_PROTOCOLS(X) \
-	X("none", WS_PROTOCOL_NONE, ws_handle_client_data)
-#else
 #define WS_PROTOCOLS(X) \
 	X("none", WS_PROTOCOL_NONE, ws_handle_client_data) \
 	X("librecast", WS_PROTOCOL_LIBRECAST, lcast_handle_client_data)
-#endif
 #undef X
 
 #define WS_PROTOCOL(k, proto, fun) case proto: return k;

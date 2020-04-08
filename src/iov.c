@@ -60,6 +60,31 @@ int iovcmp(struct iovec *c1, struct iovec *c2)
 	return memcmp(c1->iov_base, c2->iov_base, c1->iov_len);
 }
 
+int iovstrcasecmp(struct iovec *c1, struct iovec *c2)
+{
+	if (c1->iov_len < c2->iov_len)
+		return -1;
+	else if (c1->iov_len > c2->iov_len)
+		return 1;
+	return strncasecmp(c1->iov_base, c2->iov_base, c1->iov_len);
+}
+
+/* break c1 into tokens delimited by delim and perform case-insensitive compare
+ * to c2, returning 0 if matched */
+int iovstrtokmatch(struct iovec *c1, char *c2, const char *delim)
+{
+	char *str, *ptr, *tok;
+	int match = 1;
+	str = strndup(c1->iov_base, c1->iov_len);
+	for (ptr = str; (tok = strtok(ptr, delim)); ptr = NULL) {
+		if (!(match = strcasecmp(tok, c2)))
+			break;
+	}
+	free(str);
+	return match;
+}
+
+
 int iovstrcmp(struct iovec *k, void *ptr)
 {
 	return memcmp(k->iov_base, ptr, k->iov_len);

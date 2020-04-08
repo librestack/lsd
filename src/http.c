@@ -21,6 +21,8 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
+
 #include "err.h"
 #include "http.h"
 #include "iov.h"
@@ -42,11 +44,7 @@
 #include <sys/uio.h>
 #include <unistd.h>
 #include <wolfssl/wolfcrypt/coding.h>
-#include <wolfssl/wolfcrypt/hash.h>
-
-#ifndef SHA_DIGEST_LENGTH
-#define SHA_DIGEST_LENGTH WC_SHA_DIGEST_SIZE
-#endif
+#include <wolfssl/wolfcrypt/sha.h>
 
 #define IOVSIZE 5 /* number of iov structures to allocate at once */
 #define BUFLEN BUFSIZ
@@ -99,8 +97,9 @@ int http_header_process(http_request_t *req, http_response_t *res,
 		iovcpy(&req->cache, v);
 	}
 	else if (!iovstrcmp(k, "Connection")) {
-		req->close = !iovstrcmp(v, "close");
-		iovcpy(&req->connection, v);
+		req->conn_upgrade = !iovstrtokmatch(v, "upgrade", ", ");
+		req->conn_keepalive = !iovstrtokmatch(v, "keep-alive", ", ");
+		req->close = !iovstrtokmatch(v, "close", ", ");
 	}
 	else if (!iovstrcmp(k, "Referrer")) {
 		iovcpy(&req->referrer, v);
@@ -343,9 +342,7 @@ ssize_t snd_string(conn_t *c, char *str, ...)
 	va_list argp;
 
 	va_start(argp, str);
-	len = vsnprintf(NULL, 0, str, argp);
-	data = malloc(len + 1);
-	vsnprintf(data, len, str, argp);
+	vasprintf(&data, str, argp);
 	va_end(argp);
 	len = snd(c, data, strlen(data), 0);
 	free(data);
@@ -375,85 +372,91 @@ int handler_upgrade_connection_check(http_request_t *r)
 	char *h;
 	int proto = WS_PROTOCOL_NONE;
 
+	DEBUG("handler_upgrade_connection_check()");
+
+	loglevel = 127;
+
 	/* RFC 6455 */
-	if (!iovstrcmp(&r->method, "GET")) {
-		logmsg(LOG_ERROR, "Invalid method '%s' for client upgrade", r->method);
+	if (iovstrcmp(&r->method, "GET")) {
+		DEBUG("Invalid method '%.*s' for client upgrade", 
+			(int)r->method.iov_len, (char *)r->method.iov_base);
 		return HANDLER_UPGRADE_INVALID_METHOD;
 	}
-	if (!iovstrcmp(&r->httpv, "1.1")) {
-		logmsg(LOG_ERROR, "Upgrade unsupported in HTTP version '%s'", r->httpv);
+	if (iovstrcmp(&r->httpv, "1.1")) {
+		DEBUG("Upgrade unsupported in HTTP version '%s'", r->httpv);
 		return HANDLER_UPGRADE_INVALID_HTTP_VERSION;
 	}
 	if (!(r->host.iov_len)) {
-		logmsg(LOG_ERROR, "Host header required for client upgrade");
+		DEBUG("Host header required for client upgrade");
 		return HANDLER_UPGRADE_NO_HOST_HEADER;
 	}
 	if (iovstrcmp(&r->upgrade, "websocket")) {
-		logmsg(LOG_ERROR, "Unknown upgrade type '%.*s' requested",
+		DEBUG("Unknown upgrade type '%.*s' requested",
 			r->upgrade.iov_len, r->upgrade.iov_base);
 		return HANDLER_UPGRADE_INVALID_UPGRADE;
 	}
-	if (iovstrcmp(&r->connection, "upgrade")) {
-		logmsg(LOG_ERROR, "'Connection: upgrade' required");
+	if (!r->conn_upgrade) {
+		DEBUG("'Connection: upgrade' required");
 		return HANDLER_UPGRADE_INVALID_CONN;
 	}
 	if (!(r->secwebsocketkey.iov_len)) {
-		logmsg(LOG_ERROR, "Sec-WebSocket-Key required");
+		DEBUG("Sec-WebSocket-Key required");
 		return HANDLER_UPGRADE_MISSING_KEY;
 	}
 	if (iovstrcmp(&r->secwebsocketversion, "13")) {
-		logmsg(LOG_ERROR, "Sec-WebSocket-Version != 13");
+		DEBUG("Sec-WebSocket-Version != 13");
 		return HANDLER_UPGRADE_INVALID_WEBSOCKET_VERSION;
 	}
-	if (!(r->secwebsocketprotocol.iov_len)) {
-		logmsg(LOG_DEBUG, "Sec-WebSocket-Protocol: '%s' requested",
+	if ((r->secwebsocketprotocol.iov_len)) {
+		DEBUG("Sec-WebSocket-Protocol: '%.*s' requested",
 			r->secwebsocketprotocol.iov_len,
 			r->secwebsocketprotocol.iov_base);
 		h = strndup(r->secwebsocketprotocol.iov_base, r->secwebsocketprotocol.iov_len);
 		proto = ws_select_protocol(h);
 		free(h);
 		if (proto == WS_PROTOCOL_INVALID) {
-			logmsg(LOG_DEBUG, "Unsupported websocket protocol requested");
+			DEBUG("Unsupported websocket protocol requested");
 			return HANDLER_INVALID_WEBSOCKET_PROTOCOL;
 		}
 	}
-	logmsg(LOG_DEBUG, "protocol selected: %s", ws_protocol_name(proto));
+	DEBUG("protocol selected: %s", ws_protocol_name(proto));
 	ws_proto = proto;
 	if (!(r->secwebsocketextensions.iov_len)) {
-		logmsg(LOG_DEBUG, "Sec-WebSocket-Extensions: '%.*s' requested",
+		DEBUG("Sec-WebSocket-Extensions: '%.*s' requested",
 			r->secwebsocketextensions.iov_len,
 			r->secwebsocketextensions.iov_base);
 	}
+
+	DEBUG("handler_upgrade_connection_check() done");
 
 	return 0;
 }
 
 http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 {
-	unsigned char md[SHA_DIGEST_LENGTH];
+	DEBUG("response_upgrade");
+
+	byte b64[SHA_DIGEST_SIZE * 4 / 3];
+	unsigned char md[SHA_DIGEST_SIZE];
+	Sha sha;
 	char *header;
 	char *stok;
-	char *status;
-	size_t size;
-	unsigned int blen = SHA_DIGEST_LENGTH * 4 / 3;
-	unsigned char b64[blen];
+	word32 outLen;
 
-	size = snprintf(NULL, 0, "%.*s258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
+	asprintf(&stok, "%.*s258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
 		(int)req->secwebsocketkey.iov_len,
 		(char *)req->secwebsocketkey.iov_base);
-	stok = malloc(size + 1);
-	snprintf(stok, size, "%.*s258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
-		(int)req->secwebsocketkey.iov_len,
-		(char *)req->secwebsocketkey.iov_base);
-	wc_ShaHash((unsigned char *)stok, strlen(stok), md);
+
+	/* SHA1 hash, then base64 encode */
+	wc_InitSha(&sha);
+	wc_ShaUpdate(&sha, (byte *)stok, strlen(stok));
+	wc_ShaFinal(&sha, md);
 	free(stok);
-	Base64_Encode(md, SHA_DIGEST_LENGTH, b64, &blen);
-	size = snprintf(NULL, 0, "Sec-WebSocket-Accept: %s\r\n", b64);
-	header = malloc(size + 1);
-	snprintf(header, size, "Sec-WebSocket-Accept: %s\r\n", b64);
+	Base64_Encode_NoNl(md, SHA_DIGEST_SIZE, b64, &outLen);
+	asprintf(&header, "Sec-WebSocket-Accept: %s\r\n", b64);
 
-	status = http_phrase(HTTP_SWITCHING_PROTOCOLS);
-	snd_string(c, "HTTP/1.1 %i %s\r\n", HTTP_SWITCHING_PROTOCOLS, status);
+	setcork(c->sock, 1);
+	snd_string(c, "HTTP/1.1 %i %s\r\n", HTTP_SWITCHING_PROTOCOLS, http_phrase(HTTP_SWITCHING_PROTOCOLS));
 	snd_string(c, "Upgrade: websocket\r\n");
 	snd_string(c, "Connection: Upgrade\r\n");
 	if (ws_proto > 0)
@@ -462,6 +465,8 @@ http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 	free(header);
 	snd_blank_line(c);
 	setcork(c->sock, 0);
+
+	DEBUG("response_upgrade done");
 
 	return HTTP_SWITCHING_PROTOCOLS;
 }
@@ -847,7 +852,10 @@ int conn(conn_t *c)
 		wolfSSL_set_fd(c->ssl, c->sock);
 	}
 
+	loglevel = 127;
+
 	while (!req.close && http_ready(c->sock)) {
+		DEBUG("ws_proto = %i", ws_proto);
 		if (ws_proto != WS_PROTOCOL_INVALID) {
 			DEBUG("Request on established websocket");
 			if (!ws_handle_request(c)) req.close = 1;
@@ -856,8 +864,9 @@ int conn(conn_t *c)
 		memset(&req, 0, sizeof(http_request_t));
 		memset(&res, 0, sizeof(http_response_t));
 		err = http_request_read(c, &req, &res);
-		if (!err && req.upgrade.iov_len && handler_upgrade_connection_check(&req)) {
+		if (!err && req.upgrade.iov_len && !handler_upgrade_connection_check(&req)) {
 			err = response_upgrade(c, &req);
+			continue;
 		}
 		if (!err) err = http_request_handle(c, &req, &res);
 		if (!err) err = http_response(c, &req, &res);
