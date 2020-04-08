@@ -1,5 +1,7 @@
 # LSD - The Librestack Daemon
 
+<a href="https://opensource.org"><img height="150" align="right" src="https://opensource.org/files/OSIApprovedCropped.png" alt="Open Source Initiative Approved License logo"></a>
+
 LSD is a complete 2.0 rewrite of GLADD to make it more modular and efficient.
 
 LSD is a (pre)forking network daemon, which uses modules to handle requests.  It
