@@ -47,6 +47,8 @@ void logmsg(unsigned int level, const char *fmt, ...)
 	if (len > LOG_BUFSIZE) {
 		/* need a bigger buffer, resort to malloc */
 		mbuf = malloc(len + 1);
+		va_end(argp);
+		va_start(argp, fmt);
 		vsprintf(mbuf, fmt, argp);
 		b = mbuf;
 	}
