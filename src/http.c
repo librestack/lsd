@@ -434,12 +434,12 @@ http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 {
 	TRACE("%s()", __func__);
 
-	byte b64[SHA_DIGEST_SIZE * 4 / 3] = "";
+	word32 outLen = (SHA_DIGEST_SIZE + 3 - 1) / 3 * 4;
+	byte b64[outLen + 1];
 	unsigned char md[SHA_DIGEST_SIZE] = "";
 	Sha sha;
 	char *header = NULL;
 	char *stok = NULL;
-	word32 outLen;
 
 	asprintf(&stok, "%.*s258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
 		(int)req->secwebsocketkey.iov_len,
@@ -450,6 +450,7 @@ http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 	wc_ShaUpdate(&sha, (byte *)stok, strlen(stok));
 	wc_ShaFinal(&sha, md);
 	free(stok);
+	memset(b64, 0, outLen + 1);
 	Base64_Encode_NoNl(md, SHA_DIGEST_SIZE, b64, &outLen);
 	asprintf(&header, "Sec-WebSocket-Accept: %s\r\n", b64);
 
