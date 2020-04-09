@@ -1133,7 +1133,7 @@ int config_read(FILE *fd, MDB_txn *txn, MDB_dbi dbi[])
 	int line = 1;
 	int p = 0;
 	size_t len = 0;
-	char buf[LINE_MAX + 1];
+	char buf[LINE_MAX + 1] = "";
 
 	config_drop(txn, dbi);			/* drop old config */
 	if ((err = config_create_dbs(txn, dbi))) return err;

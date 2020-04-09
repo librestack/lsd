@@ -338,7 +338,7 @@ ssize_t snd_blank_line(conn_t *c)
 ssize_t snd_string(conn_t *c, char *str, ...)
 {
 	ssize_t len = 0;
-	char *data;
+	char *data = NULL;
 	va_list argp;
 
 	va_start(argp, str);
@@ -434,12 +434,12 @@ http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 {
 	TRACE("%s()", __func__);
 
-	byte b64[SHA_DIGEST_SIZE * 4 / 3];
-	unsigned char md[SHA_DIGEST_SIZE];
+	byte b64[SHA_DIGEST_SIZE * 4 / 3] = "";
+	unsigned char md[SHA_DIGEST_SIZE] = "";
 	Sha sha;
-	char *header;
-	char *stok;
-	word32 outLen;
+	char *header = NULL;
+	char *stok = NULL;
+	word32 outLen = 0;
 
 	asprintf(&stok, "%.*s258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
 		(int)req->secwebsocketkey.iov_len,
