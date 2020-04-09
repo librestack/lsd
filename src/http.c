@@ -439,7 +439,7 @@ http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 	Sha sha;
 	char *header = NULL;
 	char *stok = NULL;
-	word32 outLen = 0;
+	word32 outLen;
 
 	asprintf(&stok, "%.*s258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
 		(int)req->secwebsocketkey.iov_len,
