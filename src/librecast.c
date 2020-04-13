@@ -689,7 +689,7 @@ void * lcast_keepalive(void *arg)
 {
 	unsigned int seconds = LCAST_KEEPALIVE_INTERVAL;
 
-	while(1) {
+	while(websock) {
 		sleep(seconds);
 		DEBUG("keepalive ping (%us)", seconds);
 		if (ws_send(websock, WS_OPCODE_PING, NULL, 0)  < 2)
