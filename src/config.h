@@ -55,6 +55,8 @@ typedef enum {
 #define CONFIG_STRINGS(X) \
 	X("config",	"--config",	"-C", NULL, \
 	  "path to config file") \
+	X("modpath",	"--modpath",	"-M", "/usr/local/lib/:/usr/lib/:/usr/local/sbin/:/usr/sbin/:./src/", \
+	  "path to modules") \
 	X("cert",	"--cert",	"-c", NULL, \
 	  "path to TLS certificate") \
 	X("key",	"--key",	"-k", NULL, \

@@ -243,36 +243,44 @@ int config_load_module(module_t *mod, char *name, size_t len)
 {
 	TRACE("%s()", __func__);
 	int err = 0;
-	char modpath[128];
-	snprintf(modpath, 127, "src/%.*s.so", (int)len, name); /* FIXME: module path */
-	/* TODO: check return of snprintf */
-	DEBUG("loading module '%s'", modpath);
+	char modpath[] = "/usr/local/lib:/usr/lib:/usr/local/sbin:./src/"; /* FIXME - configurable */
+	char *module = NULL;
+	char *path;
+	size_t size;
 
-	/* first, check if we have it loaded already */
-	if (config_module(name, len)) return 0;
+	path = strtok(modpath, ":");
+	while (path) {
+		DEBUG("searching modpath: '%s'", path);
+		size = snprintf(NULL, 0, "%s/%.*s.so", path, (int)len, name);
+		module = malloc(size + 1);
+		snprintf(module, size + 1, "%s/%.*s.so", path, (int)len, name);
+		DEBUG("trying '%s'", module);
+		/* first, check if we have it loaded already */
+		if (config_module(name, len)) return 0;
+		/* FIXME: allocate memory dynamically */
+		if (!mods) {
+			mods = calloc(32, sizeof(module_t));
+		}
+		mod = mods;
+		for (int i = 0; i < mods_loaded; i++) { mod++; } /* find last */
+		mod->ptr = dlopen(module, RTLD_LAZY);
+		if (mod->ptr) {
+			mod->name = strndup(name, len);
+			DEBUG("module '%s' loaded successfully", mod->name);
+			int (* init)(); int (* conf)();
+			if ((init = dlsym(mod->ptr, "init")))
+				if ((err = init())) goto err_load;
+			if ((conf = dlsym(mod->ptr, "conf")))
+				if ((err = conf())) goto err_load;
+			mods_loaded++;
+			break;
+		}
+		free(module); module = NULL;
+		path = strtok(NULL, ":");
+	}
+	if (module) free(module);
+	else FAILMSG(LSD_ERROR_LOAD_MODULE, "Failed to load module: %.*s", len, name);
 
-	/* FIXME: allocate memory dynamically */
-	if (!mods) {
-		mods = calloc(32, sizeof(module_t));
-	}
-
-	mod = mods;
-	for (int i = 0; i < mods_loaded; i++) { mod++; } /* find last */
-	mod->ptr = dlopen(modpath, RTLD_LAZY);
-	if (mod->ptr) {
-		mod->name = strndup(name, len);
-		DEBUG("module '%s' loaded successfully", mod->name);
-		int (* init)(); int (* conf)();
-		if ((init = dlsym(mod->ptr, "init")))
-			if ((err = init())) goto err_load;
-		if ((conf = dlsym(mod->ptr, "conf")))
-			if ((err = conf())) goto err_load;
-		mods_loaded++;
-	}
-	else {
-		ERROR("%s", dlerror());
-		FAILMSG(LSD_ERROR_LOAD_MODULE, "Failed to load module: %s", name);
-	}
 	return err;
 err_load:
 	ERROR("%s", dlerror());
