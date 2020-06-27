@@ -50,4 +50,5 @@ install:	all
 		install -d $(DB_PATH)
 		install -d $(SHARE_PATH)
 		install mime.types $(SHARE_PATH)
-		install $(PROGRAM) $(MODULES) $(BIN_PATH)/
+		install $(MODULES) $(LIB_PATH)/
+		install $(PROGRAM) $(BIN_PATH)/
