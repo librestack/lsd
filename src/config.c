@@ -36,6 +36,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 int debug = 0;
 int mods_loaded = 0;
@@ -64,7 +65,7 @@ int config_mime_load()
 		mdb_txn_abort(txn);
 		return LSD_ERROR_DB;
 	}
-	fd = fopen("/var/cache/lsd/mime.types", "r");
+	fd = fopen("/usr/local/share/lsd/mime.types", "r");
 	if (!fd) {
 		ERROR("unable to open mime.types");
 		mdb_txn_abort(txn);
@@ -855,12 +856,33 @@ void config_init_db()
 {
 	TRACE("%s()", __func__);
 	if (env) return;
-	mdb_env_create(&env);
-	mdb_env_set_maxreaders(env, HANDLER_MAX + 1);
-	mdb_env_set_mapsize(env, 10485760); /* TODO: how big a map do we need? */
-	mdb_env_set_maxdbs(env, DB_MAX);
-	/* FIXME: check DB_PATH exists and is writable! */
-	mdb_env_open(env, DB_PATH, MDB_NOTLS, 0600); /* TODO: set ownership on dropprivs */
+	if (mdb_env_create(&env)) DIE ("mdb_env_create() failed");
+	if (mdb_env_set_maxreaders(env, HANDLER_MAX + 1)) DIE("mdb_env_set_maxreaders failed");
+	/* TODO: how big a map do we need? */
+	if (mdb_env_set_mapsize(env, 10485760)) DIE("mdb_env_set_mapsize failed");
+	if (mdb_env_set_maxdbs(env, DB_MAX)) DIE("mdb_env_set_maxdbs failed");
+	/* TODO: set ownership on dropprivs */
+	switch (mdb_env_open(env, DB_PATH, MDB_NOTLS, 0600)) {
+		case 0:
+			break;
+		case EACCES:
+			ERROR("cannot write to '%s'", DB_PATH);
+			goto err_exit;
+		case MDB_VERSION_MISMATCH:
+			ERROR("the version of the LMDB library doesn't match the version that created the database environment");
+			goto err_exit;
+		case MDB_INVALID:
+			ERROR("the environment file headers are corrupted");
+			goto err_exit;
+		case ENOENT:
+			ERROR("directory '%s' does not exist", DB_PATH);
+			goto err_exit;
+		case EAGAIN:
+	err_exit:
+		default:
+			mdb_env_close(env);
+			DIE("mdb_env_open failed");
+	}
 }
 
 int config_defaults(MDB_txn *txn, MDB_dbi dbi)

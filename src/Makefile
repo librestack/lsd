@@ -48,5 +48,6 @@ clean:
 install:	all
 		install -d $(BIN_PATH)
 		install -d $(DB_PATH)
-		install mime.types $(DB_PATH)
+		install -d $(SHARE_PATH)
+		install mime.types $(SHARE_PATH)
 		install $(PROGRAM) $(MODULES) $(BIN_PATH)/

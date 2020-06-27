@@ -4,7 +4,7 @@
  *
  * this file is part of LIBRESTACK
  *
- * Copyright (c) 2012-2019 Brett Sheffield <bacs@librecast.net>
+ * Copyright (c) 2012-2020 Brett Sheffield <bacs@librecast.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include <lmdb.h>
 
 #define DB_MAX 32 /* max number of named lmdb databases */
-#define DB_PATH "/var/cache/lsd/"
+#define DB_PATH "/var/local/lib/lsd/"
 
 typedef enum {
 	DB_GLOBAL,

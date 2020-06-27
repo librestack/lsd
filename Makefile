@@ -24,6 +24,9 @@ export PROGRAM
 PREFIX = /usr/local
 export PREFIX
 
+SHARE_PATH = $(PREFIX)/share/lsd
+export SHARE_PATH
+
 LIB_PATH = $(PREFIX)/lib
 export LIB_PATH
 
@@ -33,7 +36,7 @@ export LD_LIBRARY_PATH
 BIN_PATH = $(PREFIX)/sbin
 export BIN_PATH
 
-DB_PATH = /var/cache/lsd/
+DB_PATH = /var/local/lib/lsd/
 export DB_PATH
 
 CFLAGS += -Wall -Werror -Wextra -g
