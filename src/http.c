@@ -535,25 +535,19 @@ http_request_handle(conn_t *c, http_request_t *req, http_response_t *res)
 
 	/* protocol, method, action, args, host, port, path */
 	char *ptr;
-	char tls;
 	char found = 0;
+	char db_uri[16];
 	struct iovec uri[HTTP_PARTS];
+	size_t len = strlen(c->proto->module);
+	strncpy(db_uri, c->proto->module, len);
+	strcpy(db_uri + len, "_uri");
 
-	for (int i = 0; config_yield(HTTP_DB_URI, NULL, &val) == CONFIG_NEXT; i++) {
+	for (int i = 0; config_yield(db_uri, NULL, &val) == CONFIG_NEXT; i++) {
 		ptr = (char *)val.mv_data;
-		tls = ptr[0];
 		ptr++;
-
-		/* https requests only match https uris */
-		if ((tls && strcmp(c->proto->module, "https")) 
-		|| (!tls && !strcmp(c->proto->module, "https")))
-			continue;
-
 		for (int j = 0; j < HTTP_PARTS; j++) {
 			ptr = unpackiov(ptr, &uri[j]);
 		}
-
-		/* http_match_uri */
 		if (http_match_uri(req, uri)) {
 			memcpy(res->uri, uri, sizeof(struct iovec) * HTTP_PARTS);
 			found++;
@@ -934,11 +928,13 @@ int load_uri(char *line, MDB_txn *txn)
 	char pack[len + sizeof(size_t) * 4];
 	char * ptr;
 	char * pp = pack;
+	char db_uri[16];
 
 	memset(pack, 0, sizeof(pack));
 
 	/* protocol must be http:// or https:// */
 	if (memcmp(line, "http", 4)) return LSD_ERROR_CONFIG_INVALID;
+	memcpy(db_uri, line, 5);
 	line += 4;
 	if (!memcmp(line, "s://", 4)) {
 		proto = 1; /* https */
@@ -949,6 +945,7 @@ int load_uri(char *line, MDB_txn *txn)
 	line += 3;
 	pp[0] = proto;
 	ptr = pp + 1;
+	strcpy(db_uri + 4 + proto, "_uri"); /* http(s)_uri */
 
 	/* split remaining line on whitespace */
 	c = sscanf(line, "%s %s %s %[^\n]", uri, method, action, args);
@@ -998,7 +995,7 @@ int load_uri(char *line, MDB_txn *txn)
 	k.mv_size = sizeof(size_t);
 	v.mv_data = pack;
 	v.mv_size = ptr - pack;
-	config_set(HTTP_DB_URI, &k, &v, txn, 0, MDB_INTEGERKEY | MDB_CREATE);
+	config_set(db_uri, &k, &v, txn, 0, MDB_INTEGERKEY | MDB_CREATE);
 	uris++;
 	free(host);
 	if (path != uri) free(path);
