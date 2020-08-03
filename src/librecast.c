@@ -126,6 +126,7 @@ lcast_sock_t *lcast_socket_new()
 	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_sock_t *sock = NULL;
 	lcast_sock_t *p;
+	int opt = 1;
 
 	lcast_init();
 
@@ -133,6 +134,7 @@ lcast_sock_t *lcast_socket_new()
 	sock = calloc(1, sizeof(struct lcast_sock_t));
 	sock->sock = lc_socket_new(lctx);
 	sock->id = lc_socket_get_id(sock->sock);
+	lc_socket_setopt(sock->sock, IPV6_MULTICAST_LOOP, &opt, sizeof(opt));
 
 	DEBUG("socket id %u created", sock->id);
 
@@ -458,10 +460,10 @@ int lcast_cmd_channel_getval(conn_t *c, lcast_frame_t *req, char *payload)
 	}
 
 	/* send request for latest value to network */
-	lc_val_t key, val;
+	lc_val_t key;
 	key.data = payload;
 	key.size = req->len;
-	lc_channel_getval(lchan, &key, &val);
+	lc_channel_getval(lchan, &key);
 
 	return 0;
 }

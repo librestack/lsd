@@ -25,7 +25,7 @@ MODULES = echo.so http.so https.so
 
 CFLAGS += -fPIC -Wno-unused-parameter
 
-LDLIBS = -ldl -lrt -llmdb -pthread -llibrecast
+LDLIBS = -ldl -lrt -llmdb -pthread -llibrecast -llsdb -llcdb
 
 .PHONY:		all clean
 
