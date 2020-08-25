@@ -49,11 +49,11 @@ typedef struct lcast_chan_t {
 	struct lcast_chan_t *next;
 } lcast_chan_t;
 
-conn_t *websock = NULL;
-pthread_t keepalive_thread = 0;
-lc_ctx_t *lctx = NULL;
-lcast_sock_t *lsock = NULL;
-lcast_chan_t *lchan = NULL;
+conn_t *websock;
+pthread_t keepalive_thread;
+lc_ctx_t *lctx;
+lcast_sock_t *lsock;
+lcast_chan_t *lchan;
 
 lcast_chan_t *lcast_channel_byid(uint32_t id);
 lcast_chan_t *lcast_channel_byname(char *name);
