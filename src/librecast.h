@@ -27,6 +27,7 @@
 #include "websocket.h"
 
 #include <librecast.h>
+#include <sodium.h>
 #include <stdint.h>
 
 typedef struct lcast_frame_t {
@@ -58,7 +59,8 @@ typedef struct lcast_frame_t {
 	X(0x11, LCAST_OP_CHANNEL_UNBIND, "CHANNEL_UNBIND", lcast_cmd_channel_unbind) \
 	X(0x12, LCAST_OP_CHANNEL_JOIN,   "CHANNEL_JOIN",   lcast_cmd_channel_join) \
 	X(0x13, LCAST_OP_CHANNEL_PART,   "CHANNEL_PART",   lcast_cmd_channel_part) \
-	X(0x14, LCAST_OP_CHANNEL_SEND,   "CHANNEL_SEND",   lcast_cmd_channel_send)
+	X(0x14, LCAST_OP_CHANNEL_SEND,   "CHANNEL_SEND",   lcast_cmd_channel_send) \
+	X(0x15, LCAST_OP_REGISTER,       "REGISTER",       lcast_cmd_register)
 #undef X
 
 #define LCAST_TEXT_CMD(code, name, cmd, fun) if (strncmp(f->data, cmd, strlen(cmd))==0) return fun(sock, f, f->data + strlen(cmd));
@@ -69,6 +71,19 @@ typedef struct lcast_frame_t {
 typedef enum {
 	LCAST_OPCODES(LCAST_OPCODES_ENUM)
 } lcast_opcode_t;
+
+typedef struct session_s {
+	uint64_t end;	/* session last active */
+	uint64_t byi;	/* bytes in (multicast) */
+	uint64_t byo;	/* bytes oot (multicast) */
+	uint64_t wsi;	/* bytes in (websocket) */
+	uint64_t wso;	/* bytes oot (websocket) */
+} __attribute__((__packed__)) session_t;
+
+extern session_t session;
+extern uint64_t uid;	/* user id associated with this websocket */
+extern uint64_t sid;	/* session id */
+extern uint64_t sss;	/* session started */
 
 #define LCAST_KEEPALIVE_INTERVAL 15
 //#define LCAST_DEBUG_LOG_PAYLOAD 1

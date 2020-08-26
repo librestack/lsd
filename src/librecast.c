@@ -54,6 +54,10 @@ pthread_t keepalive_thread;
 lc_ctx_t *lctx;
 lcast_sock_t *lsock;
 lcast_chan_t *lchan;
+session_t session;
+uint64_t uid;
+uint64_t sid;
+uint64_t sss;
 
 lcast_chan_t *lcast_channel_byid(uint32_t id);
 lcast_chan_t *lcast_channel_byname(char *name);
@@ -65,6 +69,56 @@ int lcast_frame_decode(ws_frame_t *f, lcast_frame_t **r);
 int lcast_frame_send(conn_t *c, lcast_frame_t *req, char *payload, uint32_t paylen);
 void lcast_recv(lc_message_t *msg);
 void lcast_recv_err(int err);
+
+static void lcast_session_register()
+{
+	int mode = LC_DB_MODE_DUP | LC_DB_MODE_BOTH;
+	lc_db_idx(lctx, "session", "user", &sid, sizeof sid, &uid, sizeof uid, mode);
+}
+
+static int lcast_session_id(uint64_t *sid)
+{
+	FILE *fd = fopen("/dev/urandom", "r");
+	if (fd == NULL)
+		return -1;
+	fread(sid, sizeof *sid, 1, fd);
+	fclose(fd);
+	return 0;
+}
+
+static void lcast_session_start()
+{
+	lcast_session_id(&sid);
+	sss = time(NULL);
+	memset(&session, 0, sizeof session);
+	lcast_session_register();
+}
+
+static void lcast_session_update(uint64_t byi, uint64_t byo, uint64_t wsi, uint64_t wso)
+{
+	if (session.byi + byi > UINT64_MAX || session.byo + byo > UINT64_MAX
+	||  session.wsi + wsi > UINT64_MAX || session.wso + wso > UINT64_MAX)
+	{
+		/* overflow, start new session */
+		lcast_session_update(0, 0, 0, 0);
+		lcast_session_start();
+	}
+	session.end = time(NULL);
+	session.byi += byi;
+	session.byo += byo;
+	logmsg(LOG_DEBUG, "session %llu bytes in %llu bytes out", session.byi, session.byo);
+	/* TODO: configure option - log to local db and/or channel */
+	lc_db_set(lctx, "session", &sid, sizeof sid, &session, sizeof session);
+}
+
+static int lcast_cmd_register(conn_t *c, lcast_frame_t *req, char *payload)
+{
+	logmsg(LOG_TRACE, "%s", __func__);
+	/* TODO: unpack / check sig on cap token */
+	/* TODO: set uid */
+	lcast_session_register();
+	return 0;
+}
 
 lcast_sock_t *lcast_socket_byid(uint32_t id)
 {
@@ -226,6 +280,7 @@ int lcast_frame_send(conn_t *c, lcast_frame_t *req, char *payload, uint32_t payl
 	size_t len_head;
 	size_t len_body;
 	size_t len_send;
+	ssize_t bytes;
 
 	len_head = sizeof(lcast_frame_t);
 	len_body = (size_t)paylen;
@@ -254,7 +309,8 @@ int lcast_frame_send(conn_t *c, lcast_frame_t *req, char *payload, uint32_t payl
 	DEBUG("lcast_frame_send sending %i bytes (body)", len_body);
 	DEBUG("lcast_frame_send sending %i bytes (total)", len_send);
 
-	ws_send(c, WS_OPCODE_BINARY, buf, len_send);
+	if ((bytes = ws_send(c, WS_OPCODE_BINARY, buf, len_send)) > 0)
+		lcast_session_update(0, 0, 0, bytes);
 
 	return 0;
 }
@@ -327,13 +383,18 @@ int lcast_cmd_channel_send(conn_t *c, lcast_frame_t *req, char *payload)
 	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_chan_t *chan;
 	lc_message_t msg;
+	size_t bytes;
 
+	if (!uid) {
+		/* TODO: unknown user, only allow auth channel */
+	}
 	if ((chan = lcast_channel_byid(req->id)) == NULL)
 		FAIL(LSD_ERROR_LIBRECAST_CHANNEL_NOT_EXIST);
 
 	lc_msg_init_size(&msg, req->len);
 	memcpy(lc_msg_data(&msg), payload, req->len);
-	lc_msg_send(chan->chan, &msg);
+	bytes = lc_msg_send(chan->chan, &msg);
+	lcast_session_update(0, bytes, 0, 0);
 
 	return 0;
 }
@@ -621,6 +682,7 @@ int lcast_cmd_handler(conn_t *c, ws_frame_t *f)
 	lcast_frame_t *req = NULL;
 
 	lcast_frame_decode(f, &req);
+	lcast_session_update(0, 0, req->len, 0);
 
 	if (f->opcode <= 0x2) {
 		/* data frame */
@@ -690,12 +752,14 @@ int lcast_handle_client_data(conn_t *c, ws_frame_t *f)
 void * lcast_keepalive(void *arg)
 {
 	unsigned int seconds = LCAST_KEEPALIVE_INTERVAL;
+	ssize_t bytes;
 
 	while(websock) {
 		sleep(seconds);
 		DEBUG("keepalive ping (%us)", seconds);
-		if (ws_send(websock, WS_OPCODE_PING, NULL, 0)  < 2)
+		if ((bytes = ws_send(websock, WS_OPCODE_PING, NULL, 0)) < 2)
 			break;
+		lcast_session_update(0, 0, 0, bytes);
 	}
 	DEBUG("thread %s exiting", __func__);
 
@@ -705,6 +769,7 @@ void * lcast_keepalive(void *arg)
 void lcast_init()
 {
 	logmsg(LOG_TRACE, "%s", __func__);
+	lcast_session_start();
 	if (lctx == NULL)
 		lctx = lc_ctx_new();
 	assert(lctx != NULL);
@@ -727,6 +792,7 @@ void lcast_recv(lc_message_t *msg)
 	char *data;
 	size_t skip = 0;
 
+	lcast_session_update(msg->bytes, 0, 0, 0);
 	switch (msg->op) {
 	case LC_OP_RET:
 		req->opcode = LCAST_OP_CHANNEL_GETVAL;
