@@ -55,3 +55,11 @@ install:
 src:
 	@$(MAKE) -C src all
 
+sparse: clean
+	CC=cgcc $(MAKE) src
+
+check test sanitize: src
+	cd test && $(MAKE) $@
+
+%.test %.check:
+	cd test && $(MAKE) -B $@

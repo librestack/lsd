@@ -1,0 +1,4 @@
+*.test
+*.log
+*.valgrind
+lsd-auth-db.tmp.*
