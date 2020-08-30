@@ -10,5 +10,7 @@ int main()
 
 	test_assert(0 == 0, "this passes");
 
+	test_assert(config_init(0, NULL) == 0, "config_init()");
+
 	return fails;
 }

@@ -43,6 +43,10 @@ int mods_loaded = 0;
 module_t *mods;	/* dlopen handles for modules */
 int run = 0;
 char yield = 0; /* need to do cleanup call to config_yield() */
+int handlers = 0;
+int pid;
+int semid;
+int *socks = NULL;
 
 /* process mime.types into database */
 int config_mime_load()

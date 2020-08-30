@@ -38,8 +38,4 @@ typedef struct LSD_val {
 #define HANDLER_BSY 1   /* semapahore to track busy handlers */
 #define PROGRAM_NAME "lsd"
 
-extern int run;
-extern int semid;
-extern int *socks;
-
 #endif /* __LSD_H */

@@ -115,6 +115,11 @@ struct uri_s {
 extern int debug;
 extern char yield;
 extern module_t *mods;
+extern int run;
+extern int semid;
+extern int *socks;
+extern int pid;
+extern int handlers;
 
 void	config_close();
 char *	config_db(char db, char name[2]);

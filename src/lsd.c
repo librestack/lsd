@@ -44,11 +44,6 @@
 #include <netdb.h>
 #include <unistd.h>
 
-int handlers = 0;
-int pid;
-int semid;
-int *socks = NULL;
-
 int server_listen()
 {
 	TRACE("%s()", __func__);
