@@ -64,10 +64,10 @@ static void *get_in_addr(struct sockaddr *sa)
 static int handle_connection(int idx, int sock)
 {
 	MDB_val val = { 0, NULL };
-	conn_t c = {};
+	conn_t c = {0};
 	module_t *mod;
 	int err = 0;
-	struct sockaddr sa = {};
+	struct sockaddr sa = {0};
 	socklen_t slen = sizeof(struct sockaddr_in6);
 
 	/* get IP address of peer */
@@ -86,7 +86,7 @@ static int handle_connection(int idx, int sock)
 		mod = (module_t *)config_module(c.proto->module, strlen(c.proto->module));
 		if (!mod) goto handle_connection_err;
 		int (* conn)(conn_t*);
-		conn = dlsym(mod->ptr, "conn");
+		*(void **)(&conn) = dlsym(mod->ptr, "conn");
 		if (conn) {
 			err = conn(&c);
 			goto handle_connection_exit;

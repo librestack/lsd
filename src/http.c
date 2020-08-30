@@ -801,8 +801,8 @@ http_response(conn_t *c, http_request_t *req, http_response_t *res)
 /* Handle new connection */
 int conn(conn_t *c)
 {
-	http_response_t res = {};
-	http_request_t req = {};
+	http_response_t res = {0};
+	http_request_t req = {0};
 	char status[128];
 	char clen[128];
 	char db[2];

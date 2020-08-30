@@ -778,7 +778,7 @@ void lcast_init(void)
 
 	/* start PING thread */
 	if (keepalive_thread == 0) {
-		pthread_attr_t attr = {};
+		pthread_attr_t attr = {0};
 		pthread_attr_init(&attr);
 		pthread_create(&keepalive_thread, &attr, lcast_keepalive, NULL);
 		pthread_attr_destroy(&attr);

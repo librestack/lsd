@@ -273,9 +273,9 @@ static int config_load_module(module_t *mod, char *name, size_t len)
 			mod->name = strndup(name, len);
 			DEBUG("module '%s' loaded successfully", mod->name);
 			int (* init)(); int (* conf)();
-			if ((init = dlsym(mod->ptr, "init")))
+			if ((*(void **)(&init) = dlsym(mod->ptr, "init")))
 				if ((err = init())) goto err_load;
-			if ((conf = dlsym(mod->ptr, "conf")))
+			if ((*(void **)(&conf) = dlsym(mod->ptr, "conf")))
 				if ((err = conf())) goto err_load;
 			mods_loaded++;
 			break;
@@ -301,7 +301,7 @@ void config_unload_modules(void)
 		while (mods_loaded--) {
 			DEBUG("freeing module [%i] %s", mods_loaded, mod->name);
 			int (* finit)();
-			if ((finit = dlsym(mod->ptr, "finit")))
+			if ((*(void **)(&finit) = dlsym(mod->ptr, "finit")))
 				finit();
 			dlclose(mod->ptr);
 			free(mod->name);
@@ -513,7 +513,7 @@ static int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 
 	if (mod) {
 		int (* load_uri)(char *, MDB_txn *);
-		load_uri = dlsym(mod->ptr, "load_uri");
+		*(void **)(&load_uri) = dlsym(mod->ptr, "load_uri");
 		if (!dlerror()) err = load_uri(line, txn);
 	}
 	else {
