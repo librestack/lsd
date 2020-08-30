@@ -19,7 +19,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 
-COMMON_OBJECTS = config.o db.o err.o iov.o log.o str.o
+COMMON_OBJECTS = config.o db.o err.o iov.o log.o str.o wire.o
 OBJECTS = $(PROGRAM).o handler.o $(COMMON_OBJECTS)
 MODULES = echo.so http.so https.so
 
