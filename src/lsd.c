@@ -44,7 +44,7 @@
 #include <netdb.h>
 #include <unistd.h>
 
-int server_listen()
+static int server_listen()
 {
 	TRACE("%s()", __func__);
 	struct addrinfo hints;
@@ -102,7 +102,7 @@ int server_listen()
 	return n;
 }
 
-void sigchld_handler(int __attribute__((unused)) signo)
+static void sigchld_handler(int __attribute__((unused)) signo)
 {
 	TRACE("%s()", __func__);
 	struct sembuf sop;
@@ -120,7 +120,7 @@ void sigchld_handler(int __attribute__((unused)) signo)
 	}
 }
 
-void sighup_handler(int __attribute__((unused)) signo)
+static void sighup_handler(int __attribute__((unused)) signo)
 {
 	TRACE("%s()", __func__);
 	if (pid > 0) {
@@ -134,7 +134,7 @@ void sighup_handler(int __attribute__((unused)) signo)
 	}
 }
 
-void sigint_handler(int __attribute__((unused)) signo)
+static void sigint_handler(int __attribute__((unused)) signo)
 {
 	TRACE("%s()", __func__);
 	if (pid > 0) {
