@@ -38,18 +38,18 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-int debug = 0;
-int mods_loaded = 0;
+int debug;
+static int mods_loaded;
 module_t *mods;	/* dlopen handles for modules */
-int run = 0;
-char yield = 0; /* need to do cleanup call to config_yield() */
-int handlers = 0;
+int run;
+char yield; /* need to do cleanup call to config_yield() */
+int handlers;
 int pid;
 int semid;
 int *socks = NULL;
 
 /* process mime.types into database */
-int config_mime_load()
+int config_mime_load(void)
 {
 	MDB_txn *txn;
 	MDB_dbi dbi;
@@ -114,7 +114,7 @@ char * config_db(char db, char name[2])
 	return name;
 }
 
-int config_bool_convert(char *val, int *ival)
+static int config_bool_convert(char *val, int *ival)
 {
 	TRACE("%s()", __func__);
 	int i;
@@ -136,34 +136,34 @@ int config_bool_convert(char *val, int *ival)
 }
 
 /* boolean to yes/no */
-char * btos(int b)
+static char * btos(int b)
 {
 	TRACE("%s()", __func__);
 	return (b) ? "yes" : "no";
 }
 
-int config_isbool(char *key)
+static int config_isbool(char *key)
 {
 	TRACE("%s()", __func__);
 	CONFIG_BOOLEANS(CONFIG_IN)
 	return 0;
 }
 
-int config_isint(char *key)
+static int config_isint(char *key)
 {
 	TRACE("%s()", __func__);
 	CONFIG_INTEGERS(CONFIG_IN)
 	return 0;
 }
 
-int config_isstr(char *key)
+static int config_isstr(char *key)
 {
 	TRACE("%s()", __func__);
 	CONFIG_STRINGS(CONFIG_IN)
 	return 0;
 }
 
-int config_isopt(char *key)
+static int config_isopt(char *key)
 {
 	TRACE("%s()", __func__);
 	CONFIG_BOOLEANS(CONFIG_IN)
@@ -172,21 +172,21 @@ int config_isopt(char *key)
 	return 0;
 }
 
-int config_min(char *key)
+static int config_min(char *key)
 {
 	TRACE("%s()", __func__);
 	CONFIG_LIMITS(CONFIG_MIN)
 	return INT_MIN;
 }
 
-int config_max(char *key)
+static int config_max(char *key)
 {
 	TRACE("%s()", __func__);
 	CONFIG_LIMITS(CONFIG_MAX)
 	return INT_MAX;
 }
 
-char * config_key(char *key)
+static char * config_key(char *key)
 {
 	TRACE("%s()", __func__);
 	CONFIG_BOOLEANS(CONFIG_KEY)
@@ -196,7 +196,7 @@ char * config_key(char *key)
 }
 
 /* return false if string contains any non-numeric characters */
-int isnumeric(char *v)
+static int isnumeric(char *v)
 {
 	TRACE("%s()", __func__);
 	for (int i = 0; i < (int)strlen(v); i++) {
@@ -206,7 +206,7 @@ int isnumeric(char *v)
 }
 
 /* set key to val if numeric and within limits */
-int config_int_set(char *klong, int *key, char *val)
+static int config_int_set(char *klong, int *key, char *val)
 {
 	TRACE("%s()", __func__);
 	int min, max, i;
@@ -244,7 +244,7 @@ module_t *config_module(char *name, size_t len)
 }
 
 /* load a single module */
-int config_load_module(module_t *mod, char *name, size_t len)
+static int config_load_module(module_t *mod, char *name, size_t len)
 {
 	TRACE("%s()", __func__);
 	int err = 0;
@@ -293,7 +293,7 @@ err_load:
 	return err;
 }
 
-void config_unload_modules()
+void config_unload_modules(void)
 {
 	TRACE("%s()", __func__);
 	if (mods) {
@@ -311,7 +311,7 @@ void config_unload_modules()
 	}
 }
 
-int config_load_modules()
+int config_load_modules(void)
 {
 	TRACE("%s()", __func__);
 	MDB_txn *txn;
@@ -361,7 +361,7 @@ config_load_modules_err:
 	return err;
 }
 
-int config_process_proto(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
+static int config_process_proto(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 {
 	TRACE("%s()", __func__);
 	proto_t *p;
@@ -481,7 +481,7 @@ int config_process_proto(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 	return err;
 }
 
-int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
+static int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 {
 	TRACE("%s()", __func__);
 	module_t *mod;
@@ -524,7 +524,7 @@ int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 	return err;
 }
 
-void config_close()
+void config_close(void)
 {
 	TRACE("%s()", __func__);
 	mdb_env_close(env);
@@ -849,14 +849,14 @@ int config_yield_s(char db, char *key, MDB_val *val)
 	return config_yield(dbname, NULL, val);
 }
 
-void config_yield_free()
+void config_yield_free(void)
 {
 	TRACE("%s()", __func__);
 	config_yield(NULL, NULL, NULL);
 	yield = 0;
 }
 
-void config_init_db()
+void config_init_db(void)
 {
 	TRACE("%s()", __func__);
 	if (env) return;
@@ -889,7 +889,7 @@ void config_init_db()
 	}
 }
 
-int config_defaults(MDB_txn *txn, MDB_dbi dbi)
+static int config_defaults(MDB_txn *txn, MDB_dbi dbi)
 {
 	TRACE("%s()", __func__);
 	int err = 0;
@@ -903,7 +903,7 @@ int config_defaults(MDB_txn *txn, MDB_dbi dbi)
 	return err;
 }
 
-int config_dump(FILE *fd, MDB_txn *txn, MDB_dbi dbi[])
+static int config_dump(FILE *fd, MDB_txn *txn, MDB_dbi dbi[])
 {
 	TRACE("%s()", __func__);
 	int err = 0;
@@ -976,7 +976,7 @@ config_dump_err:
 	return LSD_ERROR_CONFIG_READ;
 }
 
-void config_drop(MDB_txn *txn, MDB_dbi dbi[])
+static void config_drop(MDB_txn *txn, MDB_dbi dbi[])
 {
 	TRACE("%s()", __func__);
 	int err = 0;
@@ -1002,7 +1002,7 @@ void config_drop(MDB_txn *txn, MDB_dbi dbi[])
 	}
 }
 
-int config_cmds(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi[])
+static int config_cmds(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi[])
 {
 	TRACE("%s()", __func__);
 	if (!(*argc)) return 0;
@@ -1029,7 +1029,7 @@ int config_cmds(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi[])
 	return 0;
 }
 
-int config_opt_set(char *k, char *v, MDB_txn *txn, MDB_dbi dbi)
+static int config_opt_set(char *k, char *v, MDB_txn *txn, MDB_dbi dbi)
 {
 	TRACE("%s()", __func__);
 	int err = 0;
@@ -1059,16 +1059,18 @@ int config_opt_set(char *k, char *v, MDB_txn *txn, MDB_dbi dbi)
 					"%s requires boolean", k);
 			}
 		}
-		err = config_set_int(DB_GLOBAL, k, ival, txn, dbi);
+		err = config_set_int(db, k, ival, txn, dbi);
 	}
 	return err;
 }
 
-int config_opts(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi)
+static int config_opts(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi)
 {
 	TRACE("%s()", __func__);
 	int err = 0;
 	char *k, *v;
+	char db[2];
+	config_db(DB_GLOBAL, db);
 
 	for (int i = 1; i < *argc; i++) {
 		if (!(strcmp(argv[i], "--debug"))) continue;
@@ -1078,7 +1080,7 @@ int config_opts(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi)
 			k = argv[i] + 2;
 			if (strlen(argv[i]) > 4 && !strncmp(k, "no", 2 ) && config_isstr(k + 2)) {
 				/* --no<option> */
-				if ((err = config_del(DB_GLOBAL, k + 2, NULL, txn, dbi))
+				if ((err = config_del(db, k + 2, NULL, txn, dbi))
 				&& (err != MDB_NOTFOUND))
 				{
 					break;
@@ -1096,7 +1098,7 @@ int config_opts(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi)
 	return err;
 }
 
-int config_process_line(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi[])
+static int config_process_line(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi[])
 {
 	TRACE("%s()", __func__);
 	int err = 0;
@@ -1128,7 +1130,7 @@ int config_process_line(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi[])
 	return err;
 }
 
-int config_create_dbs(MDB_txn *txn, MDB_dbi *dbi)
+static int config_create_dbs(MDB_txn *txn, MDB_dbi *dbi)
 {
 	TRACE("%s()", __func__);
 	int flags = 0;
@@ -1160,7 +1162,7 @@ int config_create_dbs(MDB_txn *txn, MDB_dbi *dbi)
 	return 0;
 }
 
-int config_read(FILE *fd, MDB_txn *txn, MDB_dbi dbi[])
+static int config_read(FILE *fd, MDB_txn *txn, MDB_dbi dbi[])
 {
 	TRACE("%s()", __func__);
 	int err = 0;

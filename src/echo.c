@@ -4,7 +4,7 @@
 
 unsigned int loglevel;
 
-int init()
+int init(void)
 {
 	loglevel = 127;
 	DEBUG("Module ECHO init()");

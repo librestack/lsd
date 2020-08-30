@@ -49,8 +49,7 @@
 #define IOVSIZE 5 /* number of iov structures to allocate at once */
 #define BUFLEN BUFSIZ
 
-char buf[BUFLEN];
-struct iovec *msg_iov;
+static char buf[BUFLEN];
 
 int setcork(int sock, int state)
 {
@@ -65,7 +64,7 @@ char *http_phrase(http_status_code_t code)
 	return "Unknown";
 }
 
-size_t http_status(char *status, http_status_code_t code)
+static size_t http_status(char *status, http_status_code_t code)
 {
 	return sprintf(status, "HTTP/1.1 %i - %s\r\n", code, http_phrase(code));
 }
@@ -77,7 +76,7 @@ size_t http_status(char *status, http_status_code_t code)
  * 3. defer processing of everything else
  * return 0 for success, or http_status_code_t for error
  */
-int http_header_process(http_request_t *req, http_response_t *res,
+static int http_header_process(http_request_t *req, http_response_t *res,
 			struct iovec *k, struct iovec *v)
 {
 	(void) res; /* FIXME - unused */
@@ -128,14 +127,14 @@ int http_header_process(http_request_t *req, http_response_t *res,
 	return 0;
 }
 
-int http_ready(int sock)
+static int http_ready(int sock)
 {
 	return (recv(sock, buf, 1, MSG_PEEK | MSG_WAITALL) > 0);
 }
 
 /* top up http buffer, returning number of bytes read or -1 on error
  * lclen = value of Content-Length header, or -1 */
-ssize_t http_fill_buffer(conn_t *c, void *ptr, size_t len)
+static ssize_t http_fill_buffer(conn_t *c, void *ptr, size_t len)
 {
 	TRACE("%s()", __func__);
 	ssize_t byt = 0;
@@ -160,7 +159,7 @@ ssize_t http_fill_buffer(conn_t *c, void *ptr, size_t len)
 }
 
 /* return one line at a time, reading from socket as we go */
-ssize_t http_read_line(conn_t *c, char **line, http_request_t *req)
+static ssize_t http_read_line(conn_t *c, char **line, http_request_t *req)
 {
 	TRACE("%s()", __func__);
 
@@ -249,7 +248,7 @@ http_headers_read(conn_t *c, http_request_t *req, http_response_t *res)
 }
 
 
-http_status_code_t
+static http_status_code_t
 http_request_read(conn_t *c, http_request_t *req, http_response_t *res)
 {
 	TRACE("%s()", __func__);
@@ -350,7 +349,7 @@ ssize_t snd_string(conn_t *c, char *str, ...)
 	return len;
 }
 
-int http_response_send(conn_t *c, http_request_t *req, http_response_t *res)
+static int http_response_send(conn_t *c, http_request_t *req, http_response_t *res)
 {
 	(void) req; /* FIXME - unused */
 
@@ -367,7 +366,7 @@ int http_response_send(conn_t *c, http_request_t *req, http_response_t *res)
 	return 0;
 }
 
-int handler_upgrade_connection_check(http_request_t *r)
+static int handler_upgrade_connection_check(http_request_t *r)
 {
 	char *h;
 	int proto = WS_PROTOCOL_NONE;
@@ -430,7 +429,7 @@ int handler_upgrade_connection_check(http_request_t *r)
 	return 0;
 }
 
-http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
+static http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 {
 	TRACE("%s()", __func__);
 
@@ -470,7 +469,7 @@ http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 	return HTTP_SWITCHING_PROTOCOLS;
 }
 
-char * unpackiov(char *ptr, struct iovec *iov)
+static char * unpackiov(char *ptr, struct iovec *iov)
 {
 	size_t len = *(size_t *)ptr;
 	iov->iov_len = len;
@@ -479,7 +478,7 @@ char * unpackiov(char *ptr, struct iovec *iov)
 	return ptr + len;
 }
 
-int http_match_uri(http_request_t *req, struct iovec uri[HTTP_PARTS])
+static int http_match_uri(http_request_t *req, struct iovec uri[HTTP_PARTS])
 {
 	if (iovcmp(&req->method, &uri[HTTP_METHOD]))
 		return 0;
@@ -499,7 +498,7 @@ int http_match_uri(http_request_t *req, struct iovec uri[HTTP_PARTS])
 }
 
 /* output NCSA Common log format */
-void http_request_log(conn_t *c, http_request_t *req, http_response_t *res)
+static void http_request_log(conn_t *c, http_request_t *req, http_response_t *res)
 {
 	char ts[27];
 	struct iovec dash = { "-", 1 };
@@ -527,7 +526,7 @@ void http_request_log(conn_t *c, http_request_t *req, http_response_t *res)
 	/* TODO: referrer */
 }
 
-http_status_code_t
+static http_status_code_t
 http_request_handle(conn_t *c, http_request_t *req, http_response_t *res)
 {
 	TRACE("%s()", __func__);
@@ -560,7 +559,7 @@ http_request_handle(conn_t *c, http_request_t *req, http_response_t *res)
 	return 0;
 }
 
-int http_response_code(struct iovec *uri, size_t len)
+static int http_response_code(struct iovec *uri, size_t len)
 {
 	int code;
 	void * ptr;
@@ -576,7 +575,7 @@ int http_response_code(struct iovec *uri, size_t len)
 	return code;
 }
 
-char *http_mimetype(char *ext)
+static char *http_mimetype(char *ext)
 {
 	MDB_txn *txn;
 	MDB_dbi dbi;
@@ -608,7 +607,7 @@ char *http_mimetype(char *ext)
 	return mime;
 }
 
-char *fileext(char *filename)
+static char *fileext(char *filename)
 {
 	for (int i = strlen(filename) - 1; i >= 0; i--) {
 		if (filename[i] == '.') {
@@ -618,7 +617,7 @@ char *fileext(char *filename)
 	return NULL;
 }
 
-int http_sendfile(conn_t *c, char *filename, http_request_t *req, http_response_t *res)
+static int http_sendfile(conn_t *c, char *filename, http_request_t *req, http_response_t *res)
 {
 	struct stat sb;
 	char status[128];
@@ -698,7 +697,7 @@ http_sendfile_free:
 	return ret;
 }
 
-http_status_code_t
+static http_status_code_t
 http_response_static(conn_t *c, http_request_t *req, http_response_t *res)
 {
 	char *filename = NULL;
@@ -753,7 +752,7 @@ sendnow:
 }
 
 /* returning nonzero means the response has already been sent by the handler */
-http_status_code_t
+static http_status_code_t
 http_response(conn_t *c, http_request_t *req, http_response_t *res)
 {
 	http_status_code_t code = 0;
@@ -901,7 +900,7 @@ conn_cleanup:
 }
 
 /* pack (length) size_t and string into ptr, return new ptr */
-char * packstr(char *ptr, char *str)
+static char * packstr(char *ptr, char *str)
 {
 	size_t len = (str) ? strlen(str) : 0;
 	memcpy(ptr, &len, sizeof(size_t));
@@ -1002,19 +1001,19 @@ int load_uri(char *line, MDB_txn *txn)
 
 	return 0;
 }
-void finit()
+void finit(void)
 {
 	config_close();
 }
 
 /* load/reload config */
-int conf()
+int conf(void)
 {
 	return 0;
 }
 
 /* initialize */
-int init()
+int init(void)
 {
 	return 0;
 }

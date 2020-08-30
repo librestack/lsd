@@ -49,11 +49,11 @@ typedef struct lcast_chan_t {
 	struct lcast_chan_t *next;
 } lcast_chan_t;
 
-conn_t *websock;
-pthread_t keepalive_thread;
-lc_ctx_t *lctx;
-lcast_sock_t *lsock;
-lcast_chan_t *lchan;
+static conn_t *websock;
+static pthread_t keepalive_thread;
+static lc_ctx_t *lctx;
+static lcast_sock_t *lsock;
+static lcast_chan_t *lchan;
 session_t session;
 uint64_t uid;
 uint64_t sid;
@@ -63,14 +63,14 @@ lcast_chan_t *lcast_channel_byid(uint32_t id);
 lcast_chan_t *lcast_channel_byname(char *name);
 lcast_chan_t *lcast_channel_new(char *name);
 lcast_sock_t *lcast_socket_byid(uint32_t id);
-lcast_sock_t *lcast_socket_new();
+lcast_sock_t *lcast_socket_new(void);
 void lcast_channel_free(lcast_chan_t *chan);
 int lcast_frame_decode(ws_frame_t *f, lcast_frame_t **r);
 int lcast_frame_send(conn_t *c, lcast_frame_t *req, char *payload, uint32_t paylen);
 void lcast_recv(lc_message_t *msg);
 void lcast_recv_err(int err);
 
-static void lcast_session_register()
+static void lcast_session_register(void)
 {
 	int mode = LC_DB_MODE_DUP | LC_DB_MODE_BOTH;
 	lc_db_idx(lctx, "session", "user", &sid, sizeof sid, &uid, sizeof uid, mode);
@@ -86,7 +86,7 @@ static int lcast_session_id(uint64_t *sid)
 	return 0;
 }
 
-static void lcast_session_start()
+static void lcast_session_start(void)
 {
 	lcast_session_id(&sid);
 	sss = time(NULL);
@@ -175,7 +175,7 @@ void lcast_channel_free(lcast_chan_t *chan)
 	}
 }
 
-lcast_sock_t *lcast_socket_new()
+lcast_sock_t *lcast_socket_new(void)
 {
 	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_sock_t *sock = NULL;
@@ -617,7 +617,7 @@ int lcast_cmd_socket_new(conn_t *c, lcast_frame_t *req, char *payload)
 	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_sock_t *s;
 
-	if ((s = lcast_socket_new(req->token)) == NULL)
+	if ((s = lcast_socket_new()) == NULL)
 		FAIL(LSD_ERROR_LIBRECAST_SOCKET_NOT_CREATED);
 
 	req->id = s->id;
@@ -626,7 +626,7 @@ int lcast_cmd_socket_new(conn_t *c, lcast_frame_t *req, char *payload)
 	return 0;
 }
 
-int lcast_cmd_socket_getopt(conn_t *c, lcast_frame_t *req, char *payload)
+static int lcast_cmd_socket_getopt(conn_t *c, lcast_frame_t *req, char *payload)
 {
 	logmsg(LOG_TRACE, "%s", __func__);
 
@@ -749,7 +749,7 @@ int lcast_handle_client_data(conn_t *c, ws_frame_t *f)
 	return 0;
 }
 
-void * lcast_keepalive(void *arg)
+static void * lcast_keepalive(void *arg)
 {
 	unsigned int seconds = LCAST_KEEPALIVE_INTERVAL;
 	ssize_t bytes;
@@ -766,7 +766,7 @@ void * lcast_keepalive(void *arg)
 	return NULL;
 }
 
-void lcast_init()
+void lcast_init(void)
 {
 	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_session_start();

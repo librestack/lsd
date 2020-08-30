@@ -43,7 +43,7 @@
 #include <netdb.h>
 #include <unistd.h>
 
-void handler_close()
+void handler_close(void)
 {
 	if (yield) config_yield_free();
 	config_unload_modules();
@@ -53,7 +53,7 @@ void handler_close()
 	_exit(0);
 }
 
-void *get_in_addr(struct sockaddr *sa)
+static void *get_in_addr(struct sockaddr *sa)
 {
 	if (sa->sa_family == AF_INET) {
 		return &(((struct sockaddr_in*)sa)->sin_addr);
@@ -61,7 +61,7 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int handle_connection(int idx, int sock)
+static int handle_connection(int idx, int sock)
 {
 	MDB_val val = { 0, NULL };
 	conn_t c = {};
@@ -105,7 +105,7 @@ handle_connection_err:
 	FAILMSG(LSD_ERROR_NOHANDLER, "%s", dlerror());
 }
 
-int handler_get_socket(int n, fd_set fds[], int *sock)
+static int handler_get_socket(int n, fd_set fds[], int *sock)
 {
 	for (int i = 0; i < n; i++) {
 		for (int j = 0; j < 3; j++) {
@@ -140,7 +140,7 @@ int handler_get_socket(int n, fd_set fds[], int *sock)
 }
 
 /* swap ready for busy semaphore so controller knows we're occupied */
-static inline void handler_semaphore_release()
+static inline void handler_semaphore_release(void)
 {
 	struct sembuf sop[2];
 	sop[0].sem_num = HANDLER_RDY;

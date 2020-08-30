@@ -117,7 +117,7 @@ int ws_handle_request(conn_t *c)
 	return err;
 }
 
-char *ws_opcode_desc(ws_opcode_t code)
+static char *ws_opcode_desc(ws_opcode_t code)
 {
 	switch (code) {
 		WS_OPCODES(WS_OPCODE_DESC)
@@ -130,7 +130,7 @@ char *ws_protocol_name(ws_protocol_t proto)
 	switch (proto) {
 		WS_PROTOCOLS(WS_PROTOCOL)
 	};
-	return WS_PROTOCOL_NONE;
+	return NULL;
 }
 
 int ws_read_request(conn_t *c, ws_frame_t **ret)
