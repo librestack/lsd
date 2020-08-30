@@ -3,9 +3,9 @@
 
 SHELL := /bin/bash
 CFLAGS += -Wall -g
-NOTOBJS := ../src/lsdbd.o ../src/keymgr.o
-OBJS := test.o #$(filter-out $(NOTOBJS), $(wildcard ../src/*.o))
-LDFLAGS := -llibrecast -llsdb -llcdb -ldl
+NOTOBJS := ../src/lsd.o ../src/echo.o # ../src/http.o
+OBJS := test.o $(filter-out $(NOTOBJS), $(wildcard ../src/*.o))
+LDFLAGS := -llibrecast -llsdb -llcdb -ldl -pthread -llmdb -lsodium -lwolfssl
 BOLD := "\\e[0m\\e[2m"
 RESET := "\\e[0m"
 PASS = "\\e[0m\\e[32mOK\\e[0m" # end bold, green text
