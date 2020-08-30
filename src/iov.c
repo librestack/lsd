@@ -117,7 +117,7 @@ void *iovrchr(struct iovec iov, int c, size_t *len)
 {
 	for (int i = -1; (int)(*len = (i + iov.iov_len)) >= 0; i--) {
 		if (iovidx(iov, i) == c) {
-			return iov.iov_base + *len;
+			return (char *)iov.iov_base + *len;
 		}
 	}
 	return NULL;

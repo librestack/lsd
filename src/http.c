@@ -163,10 +163,10 @@ static ssize_t http_read_line(conn_t *c, char **line, http_request_t *req)
 {
 	TRACE("%s()", __func__);
 
-	static void *ptr = buf;		/* ptr to empty buffer */
-	static void *nxt = buf;		/* ptr to unprocessed bytes */
+	static char *ptr = buf;		/* ptr to empty buffer */
+	static char *nxt = buf;		/* ptr to unprocessed bytes */
 	static size_t byt = 0;		/* unprocessed bytes */
-	void *nl = NULL;		/* ptr to newline */
+	char *nl = NULL;		/* ptr to newline */
 	ssize_t len = 0;		/* length of line */
 
 	if (!req->len) {
@@ -562,16 +562,16 @@ http_request_handle(conn_t *c, http_request_t *req, http_response_t *res)
 static int http_response_code(struct iovec *uri, size_t len)
 {
 	int code;
-	void * ptr;
+	char * ptr;
 	len++;
 	/* find closing bracket */
 	if (!(ptr = memchr(uri->iov_base, ')', uri->iov_len)))
 		return HTTP_INTERNAL_SERVER_ERROR;
 	/* response code must be 3 bytes */
-	if (ptr - uri->iov_base - len != 3)
+	if (ptr - (char *)uri->iov_base - len != 3)
 		return HTTP_INTERNAL_SERVER_ERROR;
 	/* extract the code */
-	code = (int)strtol(uri->iov_base + len, NULL, 10);
+	code = (int)strtol((char *)uri->iov_base + len, NULL, 10);
 	return code;
 }
 
@@ -728,7 +728,7 @@ http_response_static(conn_t *c, http_request_t *req, http_response_t *res)
 		}
 		/* wildcard match & path is a directory, append trailing chars */
 		i = iov_matchlen(&req->uri, &res->uri[HTTP_PATH]);
-		trail.iov_base = req->uri.iov_base + i;
+		trail.iov_base = (char *)req->uri.iov_base + i;
 		trail.iov_len = req->uri.iov_len - i;
 		len = snprintf(NULL, 0, "%.*s%.*s",
 			(int)res->uri[HTTP_ARGS].iov_len,

@@ -275,8 +275,8 @@ int lcast_frame_send(conn_t *c, lcast_frame_t *req, char *payload, uint32_t payl
 {
 	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_frame_t *msg;
-	void *buf;
-	void *body;
+	char *buf;
+	char *body;
 	size_t len_head;
 	size_t len_body;
 	size_t len_send;
@@ -805,7 +805,7 @@ void lcast_recv(lc_message_t *msg)
 		req->opcode = LCAST_OP_SOCKET_MSG;
 	}
 	req->len = msg->len - skip;
-	data = msg->data + skip;
+	data = (char *)msg->data + skip;
 	req->id = msg->sockid;
 	req->timestamp = msg->timestamp;
 

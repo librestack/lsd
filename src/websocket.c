@@ -141,7 +141,7 @@ int ws_read_request(conn_t *c, ws_frame_t **ret)
 	uint8_t mask, tmp;
 	uint8_t masked, unmasked;
 	uint32_t i;
-	void *data;
+	char *data;
 
 	/* read websocket header */
 	f = calloc(1, sizeof(struct ws_frame_t));
@@ -247,7 +247,7 @@ int ws_read_request(conn_t *c, ws_frame_t **ret)
 		bcopy(&tmp, &mask, 1);
 		bcopy(data + i, &masked, 1);
 		unmasked = mask ^ masked;
-		bcopy(&unmasked, f->data + i, 1);
+		bcopy(&unmasked, (char *)f->data + i, 1);
 	}
 	free(data);
 	free(fh);
