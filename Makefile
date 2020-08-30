@@ -39,6 +39,9 @@ export BIN_PATH
 DB_PATH = /var/local/lib/lsd/
 export DB_PATH
 
+COVERITY_DIR := cov-int
+COVERITY_TGZ := $(PROGRAM).tgz
+
 CFLAGS += -Wall -Werror -Wextra -g
 export CFLAGS
 
@@ -48,6 +51,8 @@ all:	src
 
 clean:
 	@$(MAKE) -C src $@
+	rm -rf ./$(COVERITY_DIR)
+	rm -f $(COVERITY_TGZ)
 
 install:
 	@$(MAKE) -C src $@
@@ -63,3 +68,7 @@ check test sanitize: src
 
 %.test %.check:
 	cd test && $(MAKE) -B $@
+
+coverity: clean
+	PATH=$(PATH):../cov-analysis-linux64-2019.03/bin/ cov-build --dir cov-int $(MAKE) src
+	tar czvf $(COVERITY_TGZ) $(COVERITY_DIR)
