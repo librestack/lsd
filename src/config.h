@@ -129,6 +129,7 @@ int	config_get_s(const char *db, char *key, char **val, MDB_txn *txn, MDB_dbi db
 int	config_del(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi);
 int	config_init(int argc, char **argv);
 void	config_init_db();
+int	config_int_set(char *klong, int *key, char *val);
 int	config_mime_load();
 module_t *config_module(char *name, size_t len);
 int config_set(const char *db, MDB_val *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi, int flags);

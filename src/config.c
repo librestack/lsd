@@ -206,7 +206,7 @@ static int isnumeric(char *v)
 }
 
 /* set key to val if numeric and within limits */
-static int config_int_set(char *klong, int *key, char *val)
+int config_int_set(char *klong, int *key, char *val)
 {
 	TRACE("%s()", __func__);
 	int min, max, i;

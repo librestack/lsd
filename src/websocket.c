@@ -116,7 +116,7 @@ int ws_handle_request(conn_t *c)
 
 	return err;
 }
-
+#if 0
 static char *ws_opcode_desc(ws_opcode_t code)
 {
 	switch (code) {
@@ -124,7 +124,7 @@ static char *ws_opcode_desc(ws_opcode_t code)
 	}
 	return NULL;
 }
-
+#endif
 char *ws_protocol_name(ws_protocol_t proto)
 {
 	switch (proto) {
