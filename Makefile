@@ -60,20 +60,17 @@ install:
 	@$(MAKE) -C src $@
 	@$(MAKE) -C modules $@
 
-src:
-	@$(MAKE) -C src all
-
-modules:
-	cd $@ && $(MAKE)
+src modules:
+	@$(MAKE) -C $@ all
 
 sparse: clean
 	CC=cgcc $(MAKE) src
 
 check test sanitize: src
-	cd test && $(MAKE) $@
+	@$(MAKE) -C test $@
 
 %.test %.check:
-	cd test && $(MAKE) -B $@
+	@$(MAKE) -B $@ -C test
 
 coverity: clean
 	PATH=$(PATH):../cov-analysis-linux64-2019.03/bin/ cov-build --dir cov-int $(MAKE) src
