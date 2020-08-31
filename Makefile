@@ -42,7 +42,7 @@ export DB_PATH
 COVERITY_DIR := cov-int
 COVERITY_TGZ := $(PROGRAM).tgz
 
-CFLAGS += -Wall -Wextra -Wpedantic -g
+CFLAGS += -Wall -Wextra -Wpedantic -Wvla -g
 export CFLAGS
 
 .PHONY: all clean src modules

@@ -434,7 +434,7 @@ static http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 	TRACE("%s()", __func__);
 
 	word32 outLen = (SHA_DIGEST_SIZE + 3 - 1) / 3 * 4;
-	byte b64[outLen + 1];
+	byte b64[(SHA_DIGEST_SIZE + 3 - 1) / 3 * 4 + 1];
 	unsigned char md[SHA_DIGEST_SIZE] = "";
 	Sha sha;
 	char *header = NULL;
@@ -913,18 +913,17 @@ int load_uri(char *line, MDB_txn *txn)
 {
 	MDB_val k,v;
 	static size_t uris = 0;
-	size_t len = strlen(line);
 	int c;
 	char proto = 0; /* default: http */
-	char uri[len + 1];
-	char method[len + 1];
-	char action[len + 1];
-	char args[len + 1];
+	char uri[LINE_MAX + 1];
+	char method[LINE_MAX + 1];
+	char action[LINE_MAX + 1];
+	char args[LINE_MAX + 1];
 	char *path;
 	char *host = NULL;
 	char *domain = NULL;
 	char *port = NULL; /* FIXME: port -> unsigned short */
-	char pack[len + sizeof(size_t) * 4];
+	char pack[LINE_MAX + sizeof(size_t) * 4 + 1];
 	char * ptr;
 	char * pp = pack;
 	char db_uri[16];
