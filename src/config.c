@@ -369,7 +369,7 @@ static int config_process_proto(char *line, size_t len, MDB_txn *txn, MDB_dbi db
 	MDB_val k,v;
 	char *ptr = NULL;
 	char *proto = NULL;
-	char socktype[len];
+	char socktype[LINE_MAX + 1];
 	size_t n = 0;
 	int err = 0;
 	static unsigned int protos = 0;
@@ -1102,7 +1102,7 @@ static int config_process_line(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi
 {
 	TRACE("%s()", __func__);
 	int err = 0;
-	char word[len];
+	char word[LINE_MAX + 1];
 
 	if (len == 0) return 0;			/* skip blank lines */
 	while (isblank(*line)){line++;len--;}	/* strip leading whitespace */
