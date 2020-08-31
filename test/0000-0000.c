@@ -6,11 +6,12 @@
 
 int main()
 {
-	test_name("testing tests");
+	char dbpath[] = "0000-0000.tmp.XXXXXX";
+	test_name("config_init_db() / config_close()");
 
-	test_assert(0 == 0, "this passes");
-
-	test_assert(config_init(0, NULL) == 0, "config_init()");
+	/* check for leaks - requires make check */
+	config_init_db(mkdtemp(dbpath));
+	config_close();
 
 	return fails;
 }

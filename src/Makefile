@@ -35,6 +35,8 @@ lsd:		$(OBJECTS)
 clean:
 		rm -f *.o $(PROGRAM)
 
+realclean:	clean
+
 install:	all
 		install -d $(BIN_PATH)
 		install -d $(DB_PATH)

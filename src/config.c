@@ -739,7 +739,7 @@ int config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi
 	int err = 0;
 	MDB_val k,v;
 
-	INFO("config_set_int(): '%s'='%i'", key, val); /* FIXME */
+	DEBUG("config_set_int(): '%s'='%i'", key, val);
 
 	/* prepare key + value */
 	k.mv_size = strlen(key) + 1;
@@ -856,8 +856,13 @@ void config_yield_free(void)
 	yield = 0;
 }
 
-void config_init_db(void)
+void config_init_db(char *dbpath)
 {
+	char template[] = ".tmp.db.XXXXXX";
+	if (!dbpath)
+		dbpath = mkdtemp(template);
+	if (!dbpath)
+		DIE("unable to create database");
 	TRACE("%s()", __func__);
 	if (env) return;
 	if (mdb_env_create(&env)) DIE ("mdb_env_create() failed");
@@ -866,11 +871,11 @@ void config_init_db(void)
 	if (mdb_env_set_mapsize(env, 10485760)) DIE("mdb_env_set_mapsize failed");
 	if (mdb_env_set_maxdbs(env, DB_MAX)) DIE("mdb_env_set_maxdbs failed");
 	/* TODO: set ownership on dropprivs */
-	switch (mdb_env_open(env, DB_PATH, MDB_NOTLS, 0600)) {
+	switch (mdb_env_open(env, dbpath, MDB_NOTLS, 0600)) {
 		case 0:
 			break;
 		case EACCES:
-			ERROR("cannot write to '%s'", DB_PATH);
+			ERROR("cannot write to '%s'", dbpath);
 			goto err_exit;
 		case MDB_VERSION_MISMATCH:
 			ERROR("the version of the LMDB library doesn't match the version that created the database environment");
@@ -879,7 +884,7 @@ void config_init_db(void)
 			ERROR("the environment file headers are corrupted");
 			goto err_exit;
 		case ENOENT:
-			ERROR("directory '%s' does not exist", DB_PATH);
+			ERROR("directory '%s' does not exist", dbpath);
 			goto err_exit;
 		case EAGAIN:
 	err_exit:
@@ -1206,7 +1211,7 @@ int config_init(int argc, char **argv)
 		}
 	}
 
-	config_init_db();	/* initialize lmdb */
+	config_init_db(NULL);	/* initialize lmdb */
 	config_mime_load();	/* load mime.types */
 
 	/* wrap config write in single transaction */

@@ -27,7 +27,6 @@
 #include <lmdb.h>
 
 #define DB_MAX 32 /* max number of named lmdb databases */
-#define DB_PATH "/var/local/lib/lsd/"
 
 typedef enum {
 	DB_GLOBAL,
