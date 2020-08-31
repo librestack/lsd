@@ -21,7 +21,6 @@
 
 COMMON_OBJECTS = config.o db.o err.o iov.o log.o str.o wire.o
 OBJECTS = $(PROGRAM).o handler.o $(COMMON_OBJECTS)
-MODULES = echo.so http.so https.so
 
 CFLAGS += -fPIC -Wno-unused-parameter
 
@@ -33,22 +32,10 @@ all:		$(PROGRAM) $(MODULES)
 
 lsd:		$(OBJECTS)
 
-echo.so:	echo.o $(COMMON_OBJECTS)
-		$(CC) -shared -fPIC -o $@  $^
-
-http.so:	http.o $(COMMON_OBJECTS) librecast.o websocket.o
-		$(CC) -shared -fPIC -o $@  $^ -lwolfssl $(LDLIBS)
-
-https.so:	http.so
-		ln -s http.so https.so
-
 clean:
-		rm -f *.o $(PROGRAM) $(MODULES)
+		rm -f *.o $(PROGRAM)
 
 install:	all
 		install -d $(BIN_PATH)
 		install -d $(DB_PATH)
-		install -d $(SHARE_PATH)
-		install mime.types $(SHARE_PATH)
-		install $(MODULES) $(LIB_PATH)/
 		install $(PROGRAM) $(BIN_PATH)/

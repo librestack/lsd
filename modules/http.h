@@ -23,8 +23,8 @@
 #ifndef __LSD_HTTP_H
 #define __LSD_HTTP_H 1
 
-#include "config.h"
-#include "iov.h"
+#include "../src/config.h"
+#include "../src/iov.h"
 #include <stdarg.h>
 #include <time.h>
 

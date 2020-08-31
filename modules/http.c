@@ -23,12 +23,12 @@
 
 #define _GNU_SOURCE
 
-#include "err.h"
 #include "http.h"
-#include "iov.h"
-#include "log.h"
-#include "str.h"
 #include "websocket.h"
+#include "../src/err.h"
+#include "../src/iov.h"
+#include "../src/log.h"
+#include "../src/str.h"
 #include <assert.h>
 #include <ctype.h>
 #include <fcntl.h>

@@ -45,20 +45,25 @@ COVERITY_TGZ := $(PROGRAM).tgz
 CFLAGS += -Wall -Wextra -Wpedantic -g
 export CFLAGS
 
-.PHONY: all clean src
+.PHONY: all clean src modules
 
 all:	src
 
 clean:
 	@$(MAKE) -C src $@
+	@$(MAKE) -C modules $@
 	rm -rf ./$(COVERITY_DIR)
 	rm -f $(COVERITY_TGZ)
 
 install:
 	@$(MAKE) -C src $@
+	@$(MAKE) -C modules $@
 
 src:
 	@$(MAKE) -C src all
+
+modules:
+	cd $@ && $(MAKE)
 
 sparse: clean
 	CC=cgcc $(MAKE) src
