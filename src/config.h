@@ -132,12 +132,12 @@ void	config_init_db();
 int	config_int_set(char *klong, int *key, char *val);
 int	config_mime_load();
 module_t *config_module(char *name, size_t len);
-int config_set(const char *db, MDB_val *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi, int flags);
+int	config_set(const char *db, MDB_val *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi, int flags);
 int	config_set_s(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi);
 int	config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi);
 int	config_load_modules();
 void	config_unload_modules();
-int config_yield(const char *dbname, MDB_val *key, MDB_val *val);
+int	config_yield(const char *dbname, MDB_val *key, MDB_val *val);
 int	config_yield_s(char db, char *key, MDB_val *val);
 void	config_yield_free();
 
