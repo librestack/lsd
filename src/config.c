@@ -61,6 +61,7 @@ int config_mime_load(void)
 	int err = 0;
 	FILE *fd;
 
+	if (!env) FAIL(LSD_ERROR_DB);
 	if ((err = mdb_txn_begin(env, NULL, 0, &txn)) != 0)
 		FAILMSG(LSD_ERROR_DB, "%s(): %s", __func__, mdb_strerror(err));
 
@@ -102,7 +103,6 @@ int config_mime_load(void)
 		mdb_txn_commit(txn);
 		DEBUG("loaded %zu mime types", mimes);
 	}
-
 	return err;
 }
 
@@ -859,11 +859,11 @@ void config_yield_free(void)
 void config_init_db(char *dbpath)
 {
 	char template[] = ".tmp.db.XXXXXX";
+	TRACE("%s()", __func__);
 	if (!dbpath)
 		dbpath = mkdtemp(template);
 	if (!dbpath)
 		DIE("unable to create database");
-	TRACE("%s()", __func__);
 	if (env) return;
 	if (mdb_env_create(&env)) DIE ("mdb_env_create() failed");
 	if (mdb_env_set_maxreaders(env, HANDLER_MAX + 1)) DIE("mdb_env_set_maxreaders failed");
