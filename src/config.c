@@ -530,6 +530,7 @@ void config_close(void)
 	TRACE("%s()", __func__);
 	mdb_env_close(env);
 	env = NULL;
+	free(dbdir);
 }
 
 /* fetch and return a copy */
@@ -865,8 +866,7 @@ void config_init_db(char *dbpath)
 		dbpath = mkdtemp(template);
 	if (!dbpath)
 		DIE("unable to create database");
-	dbdir = dbpath;
-	DEBUG("using dbpath %s/", dbpath);
+	dbdir = strdup(dbpath);
 	if (env) return;
 	if (mdb_env_create(&env)) DIE ("mdb_env_create() failed");
 	if (mdb_env_set_maxreaders(env, HANDLER_MAX + 1)) DIE("mdb_env_set_maxreaders failed");
