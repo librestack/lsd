@@ -46,7 +46,8 @@ char yield; /* need to do cleanup call to config_yield() */
 int handlers;
 int pid;
 int semid;
-int *socks = NULL;
+int *socks;
+char *dbdir;
 
 /* process mime.types into database */
 int config_mime_load(void)
@@ -858,12 +859,14 @@ void config_yield_free(void)
 
 void config_init_db(char *dbpath)
 {
-	char template[] = ".tmp.db.XXXXXX";
+	char template[] = "/tmp/.tmp.db.XXXXXX";
 	TRACE("%s()", __func__);
 	if (!dbpath)
 		dbpath = mkdtemp(template);
 	if (!dbpath)
 		DIE("unable to create database");
+	dbdir = dbpath;
+	DEBUG("using dbpath %s/", dbpath);
 	if (env) return;
 	if (mdb_env_create(&env)) DIE ("mdb_env_create() failed");
 	if (mdb_env_set_maxreaders(env, HANDLER_MAX + 1)) DIE("mdb_env_set_maxreaders failed");

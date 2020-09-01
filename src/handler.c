@@ -162,7 +162,7 @@ void handler_start(int n)
 
 	/* handler needs own database env */
 	mdb_env_close(env); env = NULL;
-	config_init_db(NULL);
+	config_init_db(dbdir);
 
 	/* prepare file descriptors for select() */
 	for (int i = 0; i < 3; i++) { FD_ZERO(&fds[i]); }

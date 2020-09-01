@@ -813,7 +813,6 @@ int conn(conn_t *c)
 
 	res.iovs.nmemb = IOVSIZE;
 	res.head.nmemb = IOVSIZE;
-	env = NULL; config_init_db(NULL);
 
 	/* handle TLS connection */
 	if (!strcmp(c->proto->module, "https")) {

@@ -55,6 +55,8 @@ typedef enum {
 #define CONFIG_STRINGS(X) \
 	X("config",	"--config",	"-C", NULL, \
 	  "path to config file") \
+	X("dbpath",	"--dbpath",	"-D", NULL, \
+	  "path to database directory") \
 	X("modpath",	"--modpath",	"-M", "/usr/local/lib/:/usr/lib/:/usr/local/sbin/:/usr/sbin/:./src/", \
 	  "path to modules") \
 	X("cert",	"--cert",	"-c", NULL, \
@@ -120,6 +122,7 @@ extern int semid;
 extern int *socks;
 extern int pid;
 extern int handlers;
+extern char *dbdir;
 
 void	config_close();
 char *	config_db(char db, char name[2]);
