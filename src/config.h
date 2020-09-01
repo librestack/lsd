@@ -123,6 +123,7 @@ extern int handlers;
 
 void	config_close();
 char *	config_db(char db, char name[2]);
+char *	config_dbpath(int argc, char **argv);
 int	config_get(char *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi);
 int	config_get_copy(const char *db, char *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi);
 int	config_get_s(const char *db, char *key, char **val, MDB_txn *txn, MDB_dbi dbi);

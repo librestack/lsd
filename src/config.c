@@ -1192,6 +1192,15 @@ static int config_read(FILE *fd, MDB_txn *txn, MDB_dbi dbi[])
 	return err;
 }
 
+char * config_dbpath(int argc, char **argv)
+{
+	for (int i = 1; i < argc; i++) {
+		if (!strcmp(argv[i], "--dbpath") && ++i < argc)
+			return argv[i];
+	}
+	return NULL;
+}
+
 int config_init(int argc, char **argv)
 {
 	TRACE("%s()", __func__);
@@ -1210,9 +1219,8 @@ int config_init(int argc, char **argv)
 			break;
 		}
 	}
-
-	config_init_db(NULL);	/* initialize lmdb */
-	config_mime_load();	/* load mime.types */
+	config_init_db(config_dbpath(argc, argv));
+	config_mime_load();
 
 	/* wrap config write in single transaction */
 	if ((err = mdb_txn_begin(env, NULL, 0, &txn)) != 0)
