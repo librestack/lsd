@@ -62,6 +62,7 @@ src modules:
 
 sparse: clean
 	CC=cgcc $(MAKE) src
+	CC=cgcc $(MAKE) modules
 
 check test sanitize: src
 	@$(MAKE) -C test $@
