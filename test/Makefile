@@ -4,7 +4,7 @@
 SHELL := /bin/bash
 CFLAGS += -Wall -g
 NOTOBJS := ../src/lsd.o ../src/echo.o # ../src/http.o
-OBJS := test.o $(filter-out $(NOTOBJS), $(wildcard ../src/*.o))
+OBJS := test.o ../modules/http.o ../modules/websocket.o ../modules/librecast.o $(filter-out $(NOTOBJS), $(wildcard ../src/*.o))
 LDFLAGS := -llibrecast -llsdb -llcdb -ldl -pthread -llmdb -lsodium -lwolfssl
 BOLD := "\\e[0m\\e[2m"
 RESET := "\\e[0m"

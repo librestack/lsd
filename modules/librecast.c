@@ -21,11 +21,11 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "err.h"
-#include "handler.h"
+#include "../src/err.h"
+#include "../src/handler.h"
+#include "../src/log.h"
+#include "../src/str.h"
 #include "librecast.h"
-#include "log.h"
-#include "string.h"
 
 #include <arpa/inet.h>
 #include <assert.h>

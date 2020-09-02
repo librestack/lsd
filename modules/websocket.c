@@ -27,7 +27,7 @@
 #include "../src/err.h"
 #include "../src/handler.h"
 #include "../src/log.h"
-#include "../src/string.h"
+#include "../src/str.h"
 #include <arpa/inet.h>
 #include <endian.h>
 #include <stdlib.h>
