@@ -43,6 +43,7 @@ typedef struct ws_frame_header_t {
 
 int ws_do_close(conn_t *c, ws_frame_t *f)
 {
+	(void)c; (void) f;
 	DEBUG("(websocket) CLOSE");
 	/* TODO: handle connection close reasons */
 	return LSD_ERROR_WEBSOCKET_CLOSE_CONNECTION;
@@ -59,6 +60,7 @@ int ws_do_data(conn_t *c, ws_frame_t *f)
 
 int ws_do_noop(conn_t *c, ws_frame_t *f)
 {
+	(void)c; (void) f;
 	DEBUG("(websocket) NOOP");
 	return 0;
 }
@@ -72,6 +74,7 @@ int ws_do_ping(conn_t *c, ws_frame_t *f)
 
 int ws_do_pong(conn_t *c, ws_frame_t *f)
 {
+	(void)c; (void) f;
 	/* TODO: handle client reply to our PING */
 	DEBUG("(websocket) PONG");
 	return 0;
@@ -79,6 +82,7 @@ int ws_do_pong(conn_t *c, ws_frame_t *f)
 
 int ws_handle_client_data(conn_t *c, ws_frame_t *f)
 {
+	(void)c;
 	switch (f->opcode) {
 	case 0x0:
 		DEBUG("(websocket) DATA (continuation frame)");

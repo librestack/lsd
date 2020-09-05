@@ -113,6 +113,7 @@ static void lcast_session_update(uint64_t byi, uint64_t byo, uint64_t wsi, uint6
 
 static int lcast_cmd_register(conn_t *c, lcast_frame_t *req, char *payload)
 {
+	(void)c; (void)req; (void)payload; /* FIXME */
 	logmsg(LOG_TRACE, "%s", __func__);
 	/* TODO: unpack / check sig on cap token */
 	/* TODO: set uid */
@@ -122,9 +123,9 @@ static int lcast_cmd_register(conn_t *c, lcast_frame_t *req, char *payload)
 
 lcast_sock_t *lcast_socket_byid(uint32_t id)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_sock_t *p = lsock;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	while (p) {
 		if (p->id == id)
 			return p;
@@ -136,10 +137,10 @@ lcast_sock_t *lcast_socket_byid(uint32_t id)
 
 lcast_chan_t *lcast_channel_byid(uint32_t id)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
-	logmsg(LOG_FULLTRACE, "id=%u", id);
 	lcast_chan_t *p = lchan;
 
+	logmsg(LOG_TRACE, "%s", __func__);
+	logmsg(LOG_FULLTRACE, "id=%u", id);
 	while (p) {
 		if (p->id == id)
 			return p;
@@ -152,9 +153,9 @@ lcast_chan_t *lcast_channel_byid(uint32_t id)
 
 lcast_chan_t *lcast_channel_byname(char *name)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_chan_t *p = lchan;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	while (p) {
 		if (strcmp(p->name, name) == 0)
 			return p;
@@ -177,28 +178,24 @@ void lcast_channel_free(lcast_chan_t *chan)
 
 lcast_sock_t *lcast_socket_new(void)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_sock_t *sock = NULL;
 	lcast_sock_t *p;
 	int opt = 1;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_init();
-
 	DEBUG("(librecast) CREATE socket");
 	sock = calloc(1, sizeof(struct lcast_sock_t));
 	sock->sock = lc_socket_new(lctx);
 	sock->id = lc_socket_get_id(sock->sock);
 	lc_socket_setopt(sock->sock, IPV6_MULTICAST_LOOP, &opt, sizeof(opt));
-
 	DEBUG("socket id %u created", sock->id);
-
 	for (p = lsock; p != NULL; p = p->next) {
 		if (p->next == NULL) {
 			p->next = sock;
 			break;
 		}
 	}
-
 	if (lsock == NULL)
 		lsock = sock;
 
@@ -207,10 +204,10 @@ lcast_sock_t *lcast_socket_new(void)
 
 lcast_chan_t *lcast_channel_new(char *name)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_chan_t *chan = NULL;
 	lcast_chan_t *p = lchan;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_init();
 
 	/* check for existing channel */
@@ -240,11 +237,11 @@ lcast_chan_t *lcast_channel_new(char *name)
 
 int lcast_frame_decode(ws_frame_t *f, lcast_frame_t **r)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
 	size_t offset = 0;
 	char *head = (char*) (f->data);
 	lcast_frame_t *req;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	req = calloc(1, sizeof(lcast_frame_t));
 
 	bcopy(head, &req->opcode, sizeof(req->opcode));
@@ -273,7 +270,6 @@ int lcast_frame_decode(ws_frame_t *f, lcast_frame_t **r)
 
 int lcast_frame_send(conn_t *c, lcast_frame_t *req, char *payload, uint32_t paylen)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_frame_t *msg;
 	char *buf;
 	char *body;
@@ -282,6 +278,7 @@ int lcast_frame_send(conn_t *c, lcast_frame_t *req, char *payload, uint32_t payl
 	size_t len_send;
 	ssize_t bytes;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	len_head = sizeof(lcast_frame_t);
 	len_body = (size_t)paylen;
 	len_send = len_head + len_body;
@@ -317,11 +314,11 @@ int lcast_frame_send(conn_t *c, lcast_frame_t *req, char *payload, uint32_t payl
 
 int lcast_cmd_channel_bind(conn_t *c, lcast_frame_t *req, char *payload)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
-
+	(void)payload;
 	lcast_chan_t *chan;
 	lcast_sock_t *s;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	if ((chan = lcast_channel_byid(req->id)) == NULL)
 		FAIL(LSD_ERROR_LIBRECAST_CHANNEL_NOT_EXIST);
 
@@ -336,9 +333,10 @@ int lcast_cmd_channel_bind(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_channel_join(conn_t *c, lcast_frame_t *req, char *payload)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
+	(void)payload;
 	lcast_chan_t *chan;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	if ((chan = lcast_channel_byid(req->id)) == NULL)
 		FAIL(LSD_ERROR_LIBRECAST_CHANNEL_NOT_EXIST);
 	lc_channel_join(chan->chan);
@@ -349,10 +347,10 @@ int lcast_cmd_channel_join(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_channel_new(conn_t *c, lcast_frame_t *req, char *payload)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_chan_t *chan;
 	char *channel;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	channel = calloc(1, req->len + 1);
 	memcpy(channel, payload, req->len);
 
@@ -367,9 +365,10 @@ int lcast_cmd_channel_new(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_channel_part(conn_t *c, lcast_frame_t *req, char *payload)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
+	(void)c; (void)payload;
 	lcast_chan_t *chan;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	if ((chan = lcast_channel_byid(req->id)) == NULL)
 		FAIL(LSD_ERROR_LIBRECAST_CHANNEL_NOT_EXIST);
 	lc_channel_part(chan->chan);
@@ -380,11 +379,12 @@ int lcast_cmd_channel_part(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_channel_send(conn_t *c, lcast_frame_t *req, char *payload)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
+	(void)c; (void)payload;
 	lcast_chan_t *chan;
 	lc_message_t msg;
 	size_t bytes;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	if (!uid) {
 		/* TODO: unknown user, only allow auth channel */
 	}
@@ -401,8 +401,7 @@ int lcast_cmd_channel_send(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_channel_getmsg(conn_t *c, lcast_frame_t *req, char *payload)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
-
+	(void)c;
 	char *tmp;
 	int op = 0;
 	int rc, msgs;
@@ -414,6 +413,7 @@ int lcast_cmd_channel_getmsg(conn_t *c, lcast_frame_t *req, char *payload)
 	uint32_t len = 0;
 	uint64_t timestamp;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	if (req == NULL)
 		FAIL(LSD_ERROR_LIBRECAST_INVALID_PARAMS);
 	if ((chan = lcast_channel_byid(req->id)) == NULL)
@@ -480,6 +480,8 @@ int lcast_cmd_channel_getmsg(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_channel_getop(conn_t *c, lcast_frame_t *req, char *payload)
 {
+	(void)c; (void)req; (void)payload;
+
 	logmsg(LOG_TRACE, "%s", __func__);
 
 	/* TODO */
@@ -489,6 +491,8 @@ int lcast_cmd_channel_getop(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_channel_setop(conn_t *c, lcast_frame_t *req, char *payload)
 {
+	(void)c; (void)req; (void)payload;
+
 	logmsg(LOG_TRACE, "%s", __func__);
 
 	/* TODO */
@@ -498,12 +502,12 @@ int lcast_cmd_channel_setop(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_channel_getval(conn_t *c, lcast_frame_t *req, char *payload)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_chan_t *chan;
 	lc_channel_t *lchan;
 	void *v;
 	size_t vlen;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	if (req == NULL)
 		FAIL(LSD_ERROR_LIBRECAST_INVALID_PARAMS);
 	if (payload == NULL)
@@ -531,12 +535,13 @@ int lcast_cmd_channel_getval(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_channel_setval(conn_t *c, lcast_frame_t *req, char *payload)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
+	(void)c;
 	lcast_chan_t *chan;
 	lc_channel_t *lchan;
 	lc_val_t key, val;
 	size_t keylen_size = 4;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	if (req == NULL)
 		FAIL(LSD_ERROR_LIBRECAST_INVALID_PARAMS);
 	if ((chan = lcast_channel_byid(req->id)) == NULL)
@@ -572,6 +577,8 @@ int lcast_cmd_channel_setval(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_channel_unbind(conn_t *c, lcast_frame_t *req, char *payload)
 {
+	(void)c; (void)req; (void)payload;
+
 	logmsg(LOG_TRACE, "%s", __func__);
 
 	/* TODO */
@@ -581,6 +588,8 @@ int lcast_cmd_channel_unbind(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_socket_close(conn_t *c, lcast_frame_t *req, char *payload)
 {
+	(void)c; (void)req; (void)payload;
+
 	logmsg(LOG_TRACE, "%s", __func__);
 
 	/* TODO */
@@ -590,6 +599,8 @@ int lcast_cmd_socket_close(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_socket_ignore(conn_t *c, lcast_frame_t *req, char *payload)
 {
+	(void)c; (void)req; (void)payload;
+
 	logmsg(LOG_TRACE, "%s", __func__);
 
 	/* TODO */
@@ -599,9 +610,10 @@ int lcast_cmd_socket_ignore(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_socket_listen(conn_t *c, lcast_frame_t *req, char *payload)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
+	(void)payload;
 	lcast_sock_t *s;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	if ((s = lcast_socket_byid(req->id)) == NULL)
 		FAIL(LSD_ERROR_LIBRECAST_INVALID_SOCKET_ID);
 
@@ -614,9 +626,10 @@ int lcast_cmd_socket_listen(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_socket_new(conn_t *c, lcast_frame_t *req, char *payload)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
+	(void)payload;
 	lcast_sock_t *s;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	if ((s = lcast_socket_new()) == NULL)
 		FAIL(LSD_ERROR_LIBRECAST_SOCKET_NOT_CREATED);
 
@@ -628,6 +641,8 @@ int lcast_cmd_socket_new(conn_t *c, lcast_frame_t *req, char *payload)
 
 static int lcast_cmd_socket_getopt(conn_t *c, lcast_frame_t *req, char *payload)
 {
+	(void)c; (void)req; (void)payload;
+
 	logmsg(LOG_TRACE, "%s", __func__);
 
 	/* TODO */
@@ -637,6 +652,8 @@ static int lcast_cmd_socket_getopt(conn_t *c, lcast_frame_t *req, char *payload)
 
 int lcast_cmd_socket_setopt(conn_t *c, lcast_frame_t *req, char *payload)
 {
+	(void)c; (void)req; (void)payload;
+
 	logmsg(LOG_TRACE, "%s", __func__);
 
 	/* TODO */
@@ -646,9 +663,10 @@ int lcast_cmd_socket_setopt(conn_t *c, lcast_frame_t *req, char *payload)
 
 void lcast_cmd_debug(lcast_frame_t *req, char *payload)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
+	(void)payload;
 	char *command = lcast_cmd_name(req->opcode);
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	DEBUG("(librecast) %s: opcode='%x'", command, req->opcode);
 	DEBUG("(librecast) %s: len='%x'", command, req->len);
 	DEBUG("(librecast) %s: id='%u'", command, req->id);
@@ -667,20 +685,20 @@ void lcast_cmd_debug(lcast_frame_t *req, char *payload)
 
 int lcast_cmd_noop(conn_t *c, lcast_frame_t *req, char *payload)
 {
+	(void)c; (void)req; (void)payload;
 	logmsg(LOG_TRACE, "%s", __func__);
 	return 0;
 }
 
 int lcast_cmd_handler(conn_t *c, ws_frame_t *f)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
-
 	static char *stash = NULL;
 	char *payload = NULL;
 	static uint64_t len = 0;
 	char *data = (char *)(f->data) + sizeof(lcast_frame_t);
 	lcast_frame_t *req = NULL;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_frame_decode(f, &req);
 	lcast_session_update(0, 0, req->len, 0);
 
@@ -751,6 +769,7 @@ int lcast_handle_client_data(conn_t *c, ws_frame_t *f)
 
 static void * lcast_keepalive(void *arg)
 {
+	(void)arg;
 	unsigned int seconds = LCAST_KEEPALIVE_INTERVAL;
 	ssize_t bytes;
 
@@ -787,11 +806,11 @@ void lcast_init(void)
 
 void lcast_recv(lc_message_t *msg)
 {
-	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_frame_t *req = calloc(1, sizeof(lcast_frame_t));
 	char *data;
 	size_t skip = 0;
 
+	logmsg(LOG_TRACE, "%s", __func__);
 	lcast_session_update(msg->bytes, 0, 0, 0);
 	switch (msg->op) {
 	case LC_OP_RET:
