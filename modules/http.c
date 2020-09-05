@@ -136,11 +136,9 @@ static int http_ready(int sock)
  * lclen = value of Content-Length header, or -1 */
 static ssize_t http_fill_buffer(conn_t *c, void *ptr, size_t len)
 {
-	TRACE("%s()", __func__);
 	ssize_t byt = 0;
 
-	//if (!http_ready(c->sock))
-	//	return 0;
+	TRACE("%s()", __func__);
 	if (c->ssl) {
 		if ((byt = wolfSSL_read(c->ssl, ptr, len)) < 0) {
 			return -1;
@@ -152,7 +150,6 @@ static ssize_t http_fill_buffer(conn_t *c, void *ptr, size_t len)
 			return -1;
 		}
 	}
-
 	DEBUG("%lu bytes read", byt);
 
 	return byt;
@@ -161,13 +158,13 @@ static ssize_t http_fill_buffer(conn_t *c, void *ptr, size_t len)
 /* return one line at a time, reading from socket as we go */
 static ssize_t http_read_line(conn_t *c, char **line, http_request_t *req)
 {
-	TRACE("%s()", __func__);
-
 	static char *ptr = buf;		/* ptr to empty buffer */
 	static char *nxt = buf;		/* ptr to unprocessed bytes */
 	static size_t byt = 0;		/* unprocessed bytes */
 	char *nl = NULL;		/* ptr to newline */
 	ssize_t len = 0;		/* length of line */
+
+	TRACE("%s()", __func__);
 
 	if (!req->len) {
 		ptr = nxt = buf;
@@ -251,11 +248,11 @@ http_headers_read(conn_t *c, http_request_t *req, http_response_t *res)
 static http_status_code_t
 http_request_read(conn_t *c, http_request_t *req, http_response_t *res)
 {
-	TRACE("%s()", __func__);
 	size_t i, metlen, urilen, htvlen;
 	ssize_t len = 0;
 	char *ptr, *met, *uri, *htv;
 
+	TRACE("%s()", __func__);
 	memset(req, 0, sizeof(http_request_t));
 
 	/* set request time so we have consist timestamp when needed */
@@ -431,14 +428,14 @@ static int handler_upgrade_connection_check(http_request_t *r)
 
 static http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 {
-	TRACE("%s()", __func__);
-
 	word32 outLen = (SHA_DIGEST_SIZE + 3 - 1) / 3 * 4;
 	byte b64[(SHA_DIGEST_SIZE + 3 - 1) / 3 * 4 + 1];
 	unsigned char md[SHA_DIGEST_SIZE] = "";
 	Sha sha;
 	char *header = NULL;
 	char *stok = NULL;
+
+	TRACE("%s()", __func__);
 
 	asprintf(&stok, "%.*s258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
 		(int)req->secwebsocketkey.iov_len,
@@ -529,8 +526,9 @@ static void http_request_log(conn_t *c, http_request_t *req, http_response_t *re
 static http_status_code_t
 http_request_handle(conn_t *c, http_request_t *req, http_response_t *res)
 {
-	TRACE("%s()", __func__);
 	MDB_val val = { 0, NULL };
+
+	TRACE("%s()", __func__);
 
 	/* protocol, method, action, args, host, port, path */
 	char *ptr;
@@ -563,6 +561,7 @@ static int http_response_code(struct iovec *uri, size_t len)
 {
 	int code;
 	char * ptr;
+
 	len++;
 	/* find closing bracket */
 	if (!(ptr = memchr(uri->iov_base, ')', uri->iov_len)))

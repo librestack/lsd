@@ -46,7 +46,6 @@
 
 static int server_listen(void)
 {
-	TRACE("%s()", __func__);
 	struct addrinfo hints = {0};
 	struct addrinfo *a = NULL;
 	struct addrinfo *ai = NULL;
@@ -56,6 +55,8 @@ static int server_listen(void)
 	int yes = 1;
 	proto_t *p;
 	MDB_val val;
+
+	TRACE("%s()", __func__);
 
 	/* allocate an array for sockets */
 	while (config_yield_s(DB_PROTO, "proto", &val) == CONFIG_NEXT) { n++; }
@@ -103,9 +104,9 @@ static int server_listen(void)
 
 static void sigchld_handler(int __attribute__((unused)) signo)
 {
-	TRACE("%s()", __func__);
 	struct sembuf sop;
 
+	TRACE("%s()", __func__);
 	while (waitpid(-1, NULL, WNOHANG) > 0) --handlers; /* reap children */
 
 	/* check handler count, in case any were killed */

@@ -117,10 +117,10 @@ char * config_db(char db, char name[2])
 
 static int config_bool_convert(char *val, int *ival)
 {
-	TRACE("%s()", __func__);
 	int i;
 	char *truth[] = { "1", "true", "yes", "on", "y", "aye" };
 	char *falsy[] = { "0", "false", "no", "off", "n", "nae" };
+	TRACE("%s()", __func__);
 	for (i = 0; i < (int)sizeof(truth) / (int)sizeof(char *); i++) {
 		if (strcmp(val, truth[i]) == 0) {
 			*ival = 1;
@@ -209,9 +209,9 @@ static int isnumeric(char *v)
 /* set key to val if numeric and within limits */
 int config_int_set(char *klong, int *key, char *val)
 {
-	TRACE("%s()", __func__);
 	int min, max, i;
 
+	TRACE("%s()", __func__);
 	if (!isnumeric(val)) return 0;
 	i = atoi(val);
 	min = config_min(klong);
@@ -229,8 +229,8 @@ int config_int_set(char *klong, int *key, char *val)
  * TODO: if not loaded, load it */
 module_t *config_module(char *name, size_t len)
 {
-	TRACE("%s()", __func__);
 	module_t *mod = mods;
+	TRACE("%s()", __func__);
 	DEBUG("seaching %i modules for '%.*s'", mods_loaded, len, name);
 	for (int i = 0; i < mods_loaded; i++) {
 		if (!mod) break;
@@ -247,13 +247,13 @@ module_t *config_module(char *name, size_t len)
 /* load a single module */
 static int config_load_module(module_t *mod, char *name, size_t len)
 {
-	TRACE("%s()", __func__);
 	int err = 0;
 	char modpath[] = "/usr/local/lib:/usr/lib:/usr/local/sbin:./src/"; /* FIXME - configurable */
 	char *module = NULL;
 	char *path;
 	size_t size;
 
+	TRACE("%s()", __func__);
 	path = strtok(modpath, ":");
 	while (path) {
 		DEBUG("searching modpath: '%s'", path);
@@ -314,7 +314,6 @@ void config_unload_modules(void)
 
 int config_load_modules(void)
 {
-	TRACE("%s()", __func__);
 	MDB_txn *txn;
 	MDB_cursor *cur;
 	MDB_dbi dbi;
@@ -324,6 +323,7 @@ int config_load_modules(void)
 	char dbname[2];
 	int err = 0;
 
+	TRACE("%s()", __func__);
 	config_db(DB_PROTO, dbname);
 	if ((err = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn)) != 0)
 		goto config_load_modules_err;
@@ -364,7 +364,6 @@ config_load_modules_err:
 
 static int config_process_proto(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 {
-	TRACE("%s()", __func__);
 	proto_t *p;
 	struct servent *service = NULL;
 	MDB_val k,v;
@@ -374,6 +373,8 @@ static int config_process_proto(char *line, size_t len, MDB_txn *txn, MDB_dbi db
 	size_t n = 0;
 	int err = 0;
 	static unsigned int protos = 0;
+
+	TRACE("%s()", __func__);
 
 	/* module (eg. https) */
 	ptr = line;
@@ -484,12 +485,12 @@ static int config_process_proto(char *line, size_t len, MDB_txn *txn, MDB_dbi db
 
 static int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 {
-	TRACE("%s()", __func__);
 	module_t *mod;
 	char *ptr;
 	int err = 0;
 	static size_t uris = 0;
 
+	TRACE("%s()", __func__);
 	DEBUG("processing uri");
 
 	/* store a raw copy of the uris for config dump */
@@ -536,13 +537,13 @@ void config_close(void)
 /* fetch and return a copy */
 int config_get_copy(const char *db, char *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi)
 {
-	TRACE("%s()", __func__);
 	int err = 0;
 	char txn_close = 0;
 	char dbi_close = 0;
 	MDB_val k;
 	MDB_val v;
 
+	TRACE("%s()", __func__);
 	k.mv_size = strlen(key) + 1;
 	k.mv_data = key;
 
@@ -580,10 +581,10 @@ int config_get_copy(const char *db, char *key, MDB_val *val, MDB_txn *txn, MDB_d
 
 int config_get(char *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi)
 {
-	TRACE("%s()", __func__);
 	int err = 0;
 	MDB_val k;
 
+	TRACE("%s()", __func__);
 	k.mv_size = strlen(key) + 1;
 	k.mv_data = key;
 	err = mdb_get(txn, dbi, &k, val);
@@ -596,13 +597,13 @@ int config_get(char *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi)
 /* allocate and copy string value */
 int config_get_s(const char *db, char *key, char **val, MDB_txn *txn, MDB_dbi dbi)
 {
-	TRACE("%s()", __func__);
 	int err = 0;
 	char txn_close = 0;
 	char dbi_close = 0;
 	MDB_val k;
 	MDB_val v;
 
+	TRACE("%s()", __func__);
 	k.mv_size = strlen(key) + 1;
 	k.mv_data = key;
 
@@ -640,11 +641,11 @@ int config_get_s(const char *db, char *key, char **val, MDB_txn *txn, MDB_dbi db
 
 int config_del(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
 {
-	TRACE("%s()", __func__);
 	char commit = 0;
 	int err = 0;
 	MDB_val k,v;
 
+	TRACE("%s()", __func__);
 	k.mv_size = strlen(key) + 1;
 	k.mv_data = key;
 
@@ -680,10 +681,10 @@ int config_del(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
 
 int config_set(const char *db, MDB_val *key, MDB_val *val, MDB_txn *txn, MDB_dbi dbi, int flags)
 {
-	TRACE("%s()", __func__);
 	char commit = 0;
 	int err = 0;
 
+	TRACE("%s()", __func__);
 	if (!val) return 0;
 
 	/* create new transaction and dbi handle if none */
@@ -720,9 +721,9 @@ int config_set(const char *db, MDB_val *key, MDB_val *val, MDB_txn *txn, MDB_dbi
 /* string wrapper for config_set */
 int config_set_s(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi)
 {
-	TRACE("%s()", __func__);
 	MDB_val k,v;
 
+	TRACE("%s()", __func__);
 	if (!val) return 0;
 
 	/* prepare key + value */
@@ -736,11 +737,11 @@ int config_set_s(const char *db, char *key, char *val, MDB_txn *txn, MDB_dbi dbi
 
 int config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi)
 {
-	TRACE("%s()", __func__);
 	char commit = 0;
 	int err = 0;
 	MDB_val k,v;
 
+	TRACE("%s()", __func__);
 	DEBUG("config_set_int(): '%s'='%i'", key, val);
 
 	/* prepare key + value */
@@ -779,7 +780,6 @@ int config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi
 
 int config_yield(const char *dbname, MDB_val *key, MDB_val *val)
 {
-	TRACE("%s()", __func__);
 	/* FIXME: for this function to be reentrant, we need to store all this
 	 * state and pass it back to the caller */
 	static config_state_t state = CONFIG_INIT;
@@ -789,6 +789,7 @@ int config_yield(const char *dbname, MDB_val *key, MDB_val *val)
 	static MDB_cursor_op op = MDB_FIRST;
 	int err = 0;
 
+	TRACE("%s()", __func__);
 	if (!dbname)
 		state = CONFIG_FINAL;
 	switch (state) {
@@ -836,12 +837,12 @@ int config_yield(const char *dbname, MDB_val *key, MDB_val *val)
 /* return one value at a time. Call with key == NULL to skip to final state clean up */
 int config_yield_s(char db, char *key, MDB_val *val)
 {
-	TRACE("%s()", __func__);
 	/* FIXME: for this function to be reentrant, we need to store all this
 	 * state and pass it back to the caller */
 	static MDB_val k;
 	static char dbname[2];
 
+	TRACE("%s()", __func__);
 	config_db(db, dbname);
 	if (key) {
 		k.mv_size = strlen(key) + 1;
@@ -899,10 +900,10 @@ void config_init_db(char *dbpath)
 
 static int config_defaults(MDB_txn *txn, MDB_dbi dbi)
 {
-	TRACE("%s()", __func__);
 	int err = 0;
 	char db[2];
 
+	TRACE("%s()", __func__);
 	config_db(DB_GLOBAL, db);
 	CONFIG_STRINGS(CONFIG_SET)
 	CONFIG_INTEGERS(CONFIG_SET_INT)
@@ -913,13 +914,13 @@ static int config_defaults(MDB_txn *txn, MDB_dbi dbi)
 
 static int config_dump(FILE *fd, MDB_txn *txn, MDB_dbi dbi[])
 {
-	TRACE("%s()", __func__);
 	int err = 0;
 	MDB_cursor *cur;
 	MDB_cursor_op op;
 	MDB_val key;
 	MDB_val data;
 
+	TRACE("%s()", __func__);
 	for (int i = 0; i < 80; i++) { fputc('#', fd); }
 	fprintf(fd, "\n## globals\n");
 	err = mdb_cursor_open(txn, dbi[DB_GLOBAL], &cur);
@@ -986,10 +987,11 @@ config_dump_err:
 
 static void config_drop(MDB_txn *txn, MDB_dbi dbi[])
 {
-	TRACE("%s()", __func__);
 	int err = 0;
 	int flags = 0;
 	char db[2];
+
+	TRACE("%s()", __func__);
 
 	/* close & reopen txn in case of previous writes */
 	mdb_txn_abort(txn);
@@ -1039,11 +1041,11 @@ static int config_cmds(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi[])
 
 static int config_opt_set(char *k, char *v, MDB_txn *txn, MDB_dbi dbi)
 {
-	TRACE("%s()", __func__);
 	int err = 0;
 	int ival = 0;
 	char db[2];
 
+	TRACE("%s()", __func__);
 	config_db(DB_GLOBAL, db);
 	if (config_isstr(k)) {
 		DEBUG("%s is str", k);
@@ -1074,12 +1076,12 @@ static int config_opt_set(char *k, char *v, MDB_txn *txn, MDB_dbi dbi)
 
 static int config_opts(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi)
 {
-	TRACE("%s()", __func__);
 	int err = 0;
 	char *k, *v;
 	char db[2];
-	config_db(DB_GLOBAL, db);
 
+	TRACE("%s()", __func__);
+	config_db(DB_GLOBAL, db);
 	for (int i = 1; i < *argc; i++) {
 		if (!(strcmp(argv[i], "--debug"))) continue;
 		v = argv[i+1];
@@ -1108,10 +1110,10 @@ static int config_opts(int *argc, char **argv, MDB_txn *txn, MDB_dbi dbi)
 
 static int config_process_line(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi[])
 {
-	TRACE("%s()", __func__);
 	int err = 0;
 	char word[LINE_MAX + 1];
 
+	TRACE("%s()", __func__);
 	if (len == 0) return 0;			/* skip blank lines */
 	while (isblank(*line)){line++;len--;}	/* strip leading whitespace */
 	if (line[0] == '#') return 0;		/* ignore comments */
@@ -1140,10 +1142,12 @@ static int config_process_line(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi
 
 static int config_create_dbs(MDB_txn *txn, MDB_dbi *dbi)
 {
-	TRACE("%s()", __func__);
 	int flags = 0;
 	int err = 0;
 	char db[2];
+
+	TRACE("%s()", __func__);
+
 	/* try to open database, else create it */
 	for (int i = 0; i <= DB_URI; i++) {
 		if (i == 1) flags |= MDB_INTEGERKEY;
@@ -1172,13 +1176,13 @@ static int config_create_dbs(MDB_txn *txn, MDB_dbi *dbi)
 
 static int config_read(FILE *fd, MDB_txn *txn, MDB_dbi dbi[])
 {
-	TRACE("%s()", __func__);
 	int err = 0;
 	int line = 1;
 	int p = 0;
 	size_t len = 0;
 	char buf[LINE_MAX + 1] = "";
 
+	TRACE("%s()", __func__);
 	config_drop(txn, dbi);			/* drop old config */
 	if ((err = config_create_dbs(txn, dbi))) return err;
 	while (fgets(buf + p, LINE_MAX, fd)) {
@@ -1206,13 +1210,14 @@ char * config_dbpath(int argc, char **argv)
 
 int config_init(int argc, char **argv)
 {
-	TRACE("%s()", __func__);
 	int err = 0;
 	char *filename = NULL;
 	FILE *fd = NULL;
 	MDB_txn *txn = NULL;
 	MDB_dbi dbi[sizeof(config_db_idx_t)];
 	MDB_val val;
+
+	TRACE("%s()", __func__);
 
 	/* first, check if we're in debug mode */
 	for (int i = 1; i < argc; i++) {
