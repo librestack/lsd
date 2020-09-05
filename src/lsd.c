@@ -47,7 +47,7 @@
 static int server_listen(void)
 {
 	TRACE("%s()", __func__);
-	struct addrinfo hints;
+	struct addrinfo hints = {0};
 	struct addrinfo *a = NULL;
 	struct addrinfo *ai = NULL;
 	char cport[6];
@@ -67,7 +67,6 @@ static int server_listen(void)
 	n = 0;
 
 	/* listen on all ports and protocols listed in config */
-	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_flags = AI_PASSIVE;
 	while (config_yield_s(DB_PROTO, "proto", &val) == CONFIG_NEXT) {
