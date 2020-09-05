@@ -314,8 +314,8 @@ void config_unload_modules(void)
 
 int config_load_modules(void)
 {
-	MDB_txn *txn;
-	MDB_cursor *cur;
+	MDB_txn *txn = NULL;
+	MDB_cursor *cur = NULL;
 	MDB_dbi dbi;
 	MDB_val key;
 	MDB_val val;
