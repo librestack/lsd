@@ -2,3 +2,5 @@
 *.so
 *.swp
 src/lsd
+cov-int/
+lsd.tgz
