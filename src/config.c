@@ -288,7 +288,7 @@ static int config_load_module(module_t *mod, char *name, size_t len)
 		path = strtok(NULL, ":");
 	}
 	if (module) free(module);
-	else FAILMSG(LSD_ERROR_LOAD_MODULE, "Failed to load module: %.*s", len, name);
+	else FAILMSG(LSD_ERROR_LOAD_MODULE, "Failed to load module: %.*s", (int)len, name);
 
 	return err;
 err_load:
