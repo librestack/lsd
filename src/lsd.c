@@ -214,6 +214,7 @@ int main(int argc, char **argv)
 		}
 	}
 exit_controller:
+	while (handlers) close(socks[handlers--]);
 	free(socks);
 	config_unload_modules();
 	config_close();
