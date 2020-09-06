@@ -822,21 +822,17 @@ int config_yield(const char *dbname, MDB_val *key, MDB_val *val)
 		mdb_txn_abort(txn);
 		return 0;
 	}
-
 	if (state != CONFIG_FINAL) {
 		err = mdb_cursor_get(cur, key, val, op);
 	}
-
 	if (err) {
 		if (err == MDB_NOTFOUND) {
 			state = CONFIG_FINAL;
 			return state;
 		}
-		FAILMSG(LSD_ERROR_DB, "%s(%i): %s", __func__, __LINE__, \
-							mdb_strerror(err));
+		FAILMSG(LSD_ERROR_DB, "%s(%i): %s", __func__, __LINE__, mdb_strerror(err));
 	}
-
-	return (err == 0) ? state : 0;
+	return state;
 }
 
 /* return one value at a time. Call with key == NULL to skip to final state clean up */
