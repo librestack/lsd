@@ -235,7 +235,7 @@ module_t *config_module(char *name, size_t len)
 	DEBUG("seaching %i modules for '%.*s'", mods_loaded, (int)len, name);
 	for (int i = 0; i < mods_loaded; i++) {
 		if (!mod) break;
-		DEBUG("trying '%s'=='%.*s'", mod->name, len, name);
+		DEBUG("trying '%s'=='%.*s'", mod->name, (int)len, name);
 		if (!strncmp(mod->name, name, len)) {
 			DEBUG("found '%.*s'", (int)len, name);
 			return mod;
