@@ -262,7 +262,10 @@ static int config_load_module(module_t *mod, char *name, size_t len)
 		snprintf(module, size + 1, "%s/%.*s.so", path, (int)len, name);
 		DEBUG("trying '%s'", module);
 		/* first, check if we have it loaded already */
-		if (config_module(name, len)) return 0;
+		if (config_module(name, len)) {
+			free(module);
+			return 0;
+		}
 		/* FIXME: allocate memory dynamically */
 		if (!mods) {
 			mods = calloc(32, sizeof(module_t));
