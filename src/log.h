@@ -57,6 +57,6 @@ extern unsigned int loglevel;
 #define INFO(fmt, ...) LOG(LOG_INFO, fmt ,##__VA_ARGS__)
 #define TRACE(fmt, ...) LOG(LOG_TRACE, fmt ,##__VA_ARGS__)
 
-void logmsg(unsigned int level, const char *fmt, ...);
+void logmsg(unsigned int level, const char *fmt, ...) __attribute__((format(printf, 2 ,3)));
 
 #endif /* __LSD_LOG */
