@@ -1,5 +1,10 @@
 # LSD - The Librestack Daemon
 
+<a href="https://scan.coverity.com/projects/librestack-lsd">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/21544/badge.svg"/>
+</a>
+
 <a href="https://opensource.org"><img height="150" align="right" src="https://opensource.org/files/OSIApprovedCropped.png" alt="Open Source Initiative Approved License logo"></a>
 
 LSD is a complete 2.0 rewrite of GLADD to make it more modular and efficient.
