@@ -38,5 +38,5 @@ clean:
 realclean:	clean
 
 install:	all
-		install -d $(BIN_PATH)
-		install $(PROGRAM) $(BIN_PATH)/
+		install -d $(DESTDIR)$(BIN_PATH)
+		install $(PROGRAM) $(DESTDIR)$(BIN_PATH)/
