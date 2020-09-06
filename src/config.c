@@ -510,7 +510,7 @@ static int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 
 	ptr = strchr(line, ':');
 	len = (size_t)(ptr-line);
-	DEBUG("uri proto: %.*s", len, line);
+	DEBUG("uri proto: %.*s", (int)len, line);
 
 	/* find or load module for this uri */
 	if (!(mod = config_module(line, len)))
