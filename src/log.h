@@ -45,6 +45,7 @@ enum {
 #define LOG_LOGLEVEL_DEFAULT 15
 extern unsigned int loglevel;
 
+#define FMTV(iov) (int)(iov).iov_len, (const char *)(iov).iov_base
 #define LOG(lvl, fmt, ...) if ((lvl & loglevel) == lvl) logmsg(lvl, fmt ,##__VA_ARGS__)
 #define BREAK(lvl, fmt, ...) {LOG(lvl, fmt ,##__VA_ARGS__); break;}
 #define CONTINUE(lvl, fmt, ...) {LOG(lvl, fmt ,##__VA_ARGS__); continue;}
@@ -57,6 +58,10 @@ extern unsigned int loglevel;
 #define INFO(fmt, ...) LOG(LOG_INFO, fmt ,##__VA_ARGS__)
 #define TRACE(fmt, ...) LOG(LOG_TRACE, fmt ,##__VA_ARGS__)
 
-void logmsg(unsigned int level, const char *fmt, ...) __attribute__((format(printf, 2 ,3)));
+void logmsg(unsigned int level, const char *fmt, ...)
+#ifdef __GNUC__
+	__attribute__((format(printf, 2 ,3)))
+#endif
+;
 
 #endif /* __LSD_LOG */

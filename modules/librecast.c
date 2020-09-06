@@ -302,9 +302,9 @@ int lcast_frame_send(conn_t *c, lcast_frame_t *req, char *payload, uint32_t payl
 		memcpy(body, payload, len_body);
 	}
 
-	DEBUG("lcast_frame_send sending %i bytes (head)", len_head);
-	DEBUG("lcast_frame_send sending %i bytes (body)", len_body);
-	DEBUG("lcast_frame_send sending %i bytes (total)", len_send);
+	DEBUG("lcast_frame_send sending %zi bytes (head)", len_head);
+	DEBUG("lcast_frame_send sending %zi bytes (body)", len_body);
+	DEBUG("lcast_frame_send sending %zi bytes (total)", len_send);
 
 	if ((bytes = ws_send(c, WS_OPCODE_BINARY, buf, len_send)) > 0)
 		lcast_session_update(0, 0, 0, bytes);

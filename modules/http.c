@@ -263,7 +263,7 @@ http_request_read(conn_t *c, http_request_t *req, http_response_t *res)
 		req->close = 1;
 		return HTTP_BAD_REQUEST;
 	}
-	DEBUG("%.*s", len, ptr);
+	DEBUG("%.*s", (int)len, ptr);
 
 	i = wordend(&ptr, HTTP_METHOD_MAX, req->len);	/* HTTP method */
 	if (i == 0 || i == req->len)
@@ -289,7 +289,7 @@ http_request_read(conn_t *c, http_request_t *req, http_response_t *res)
 	}
 	ptr += 5; i -= 5;
 	htv = ptr; htvlen = i;
-	DEBUG("HTTP_VERSION: %.*s", i, ptr);
+	DEBUG("HTTP_VERSION: %.*s", (int)i, ptr);
 	if (strncmp(ptr, "1.1", i)) {
 		if (!strncmp(ptr, "1.0", i)) {
 			req->close = 1;
@@ -377,7 +377,7 @@ static int handler_upgrade_connection_check(http_request_t *r)
 		return HANDLER_UPGRADE_INVALID_METHOD;
 	}
 	if (iovstrcmp(&r->httpv, "1.1")) {
-		DEBUG("Upgrade unsupported in HTTP version '%s'", r->httpv);
+		DEBUG("Upgrade unsupported in HTTP version '%.*s'", FMTV(r->httpv));
 		return HANDLER_UPGRADE_INVALID_HTTP_VERSION;
 	}
 	if (!(r->host.iov_len)) {
@@ -385,8 +385,7 @@ static int handler_upgrade_connection_check(http_request_t *r)
 		return HANDLER_UPGRADE_NO_HOST_HEADER;
 	}
 	if (iovstrcmp(&r->upgrade, "websocket")) {
-		DEBUG("Unknown upgrade type '%.*s' requested",
-			r->upgrade.iov_len, r->upgrade.iov_base);
+		DEBUG("Unknown upgrade type '%.*s' requested", FMTV(r->upgrade));
 		return HANDLER_UPGRADE_INVALID_UPGRADE;
 	}
 	if (!r->conn_upgrade) {
@@ -402,9 +401,7 @@ static int handler_upgrade_connection_check(http_request_t *r)
 		return HANDLER_UPGRADE_INVALID_WEBSOCKET_VERSION;
 	}
 	if ((r->secwebsocketprotocol.iov_len)) {
-		DEBUG("Sec-WebSocket-Protocol: '%.*s' requested",
-			r->secwebsocketprotocol.iov_len,
-			r->secwebsocketprotocol.iov_base);
+		DEBUG("Sec-WebSocket-Protocol: '%.*s' requested", FMTV(r->secwebsocketprotocol));
 		h = strndup(r->secwebsocketprotocol.iov_base, r->secwebsocketprotocol.iov_len);
 		proto = ws_select_protocol(h);
 		free(h);
@@ -417,8 +414,7 @@ static int handler_upgrade_connection_check(http_request_t *r)
 	ws_proto = proto;
 	if (!(r->secwebsocketextensions.iov_len)) {
 		DEBUG("Sec-WebSocket-Extensions: '%.*s' requested",
-			r->secwebsocketextensions.iov_len,
-			r->secwebsocketextensions.iov_base);
+			FMTV(r->secwebsocketextensions));
 	}
 
 	TRACE("%s() done", __func__);
@@ -512,13 +508,13 @@ static void http_request_log(conn_t *c, http_request_t *req, http_response_t *re
 	INFO("%s - - [%s] \"%.*s %.*s %s\" %i %zu \"%.*s\" \"%.*s\"",
 		c->addr,
 		ts,
-		req->method.iov_len, req->method.iov_base,
-		req->uri.iov_len, req->uri.iov_base,
+		FMTV(req->method),
+		FMTV(req->uri),
 		httpv,
 		res->code,
 		res->len,
-		req->referrer.iov_len, req->referrer.iov_base,
-		req->useragent.iov_len, req->useragent.iov_base
+		FMTV(req->referrer),
+		FMTV(req->useragent)
 	);
 	/* TODO: referrer */
 }
@@ -708,18 +704,18 @@ http_response_static(conn_t *c, http_request_t *req, http_response_t *res)
 	/* config missing args */
 	if (!res->uri[HTTP_ARGS].iov_len) return HTTP_INTERNAL_SERVER_ERROR;
 
-	DEBUG("requested: '%.*s'", req->uri.iov_len, req->uri.iov_base);
-	DEBUG("compareto: '%.*s'", res->uri[HTTP_PATH].iov_len, res->uri[HTTP_PATH].iov_base);
+	DEBUG("requested: '%.*s'", FMTV(req->uri));
+	DEBUG("compareto: '%.*s'", FMTV(res->uri[HTTP_PATH]));
 	if (!iovcmp(&req->uri, &res->uri[HTTP_PATH])) {
 		/* exact match */
-		DEBUG("exact match: '%.*s'", req->uri.iov_len, req->uri.iov_base);
+		DEBUG("exact match: '%.*s'", FMTV(req->uri));
 		if (iovidx(res->uri[HTTP_ARGS], -1) == '/') /* directory */
 			return HTTP_INTERNAL_SERVER_ERROR;
 		filename = iovdup(&res->uri[HTTP_ARGS]);
 	}
 	else if (!iovmatch(&res->uri[HTTP_PATH], &req->uri, 0)) {
 		/* wildcard match */
-		DEBUG("wildcard match: '%.*s'", req->uri.iov_len, req->uri.iov_base);
+		DEBUG("wildcard match: '%.*s'", FMTV(req->uri));
 		if (iovidx(res->uri[HTTP_ARGS], -1) != '/') {
 			/* wildcard, but path points to file. Just serve the file */
 			filename = iovdup(&res->uri[HTTP_ARGS]);
@@ -729,15 +725,9 @@ http_response_static(conn_t *c, http_request_t *req, http_response_t *res)
 		i = iov_matchlen(&req->uri, &res->uri[HTTP_PATH]);
 		trail.iov_base = (char *)req->uri.iov_base + i;
 		trail.iov_len = req->uri.iov_len - i;
-		len = snprintf(NULL, 0, "%.*s%.*s",
-			(int)res->uri[HTTP_ARGS].iov_len,
-			(char *)res->uri[HTTP_ARGS].iov_base,
-			(int)trail.iov_len, (char *)trail.iov_base);
+		len = snprintf(NULL, 0, "%.*s%.*s", FMTV(res->uri[HTTP_ARGS]), FMTV(trail));
 		filename = malloc(len + 1);
-		snprintf(filename, len + 1, "%.*s%.*s",
-			(int)res->uri[HTTP_ARGS].iov_len,
-			(char *)res->uri[HTTP_ARGS].iov_base,
-			(int)trail.iov_len, (char *)trail.iov_base);
+		snprintf(filename, len + 1, "%.*s%.*s", FMTV(res->uri[HTTP_ARGS]), FMTV(trail));
 	}
 	else return HTTP_NOT_FOUND;
 	if (filename) {
