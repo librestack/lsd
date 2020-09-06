@@ -236,7 +236,7 @@ module_t *config_module(char *name, size_t len)
 		if (!mod) break;
 		DEBUG("trying '%s'=='%.*s'", mod->name, len, name);
 		if (!strncmp(mod->name, name, len)) {
-			DEBUG("found '%.*s'", len, name);
+			DEBUG("found '%.*s'", (int)len, name);
 			return mod;
 		}
 		mod++;
