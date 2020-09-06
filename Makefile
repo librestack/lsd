@@ -21,6 +21,9 @@
 PROGRAM = lsd
 export PROGRAM
 
+PREFIX ?= /usr/local
+export PREFIX
+
 SHARE_PATH = $(PREFIX)/share/lsd
 export SHARE_PATH
 
