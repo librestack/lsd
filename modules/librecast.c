@@ -106,7 +106,7 @@ static void lcast_session_update(uint64_t byi, uint64_t byo, uint64_t wsi, uint6
 	session.end = time(NULL);
 	session.byi += byi;
 	session.byo += byo;
-	logmsg(LOG_DEBUG, "session %llu bytes in %llu bytes out", session.byi, session.byo);
+	logmsg(LOG_DEBUG, "session %lu bytes in %lu bytes out", session.byi, session.byo);
 	/* TODO: configure option - log to local db and/or channel */
 	lc_db_set(lctx, "session", &sid, sizeof sid, &session, sizeof session);
 }

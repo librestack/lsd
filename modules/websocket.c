@@ -320,7 +320,7 @@ ssize_t ws_send(conn_t *c, ws_opcode_t opcode, void *data, size_t len)
 		return -1;
 	sent += bytes;
 	setcork(c->sock, 0);
-	DEBUG("%i bytes sent", sent);
+	DEBUG("%zi bytes sent", sent);
 
 	return sent;
 }
