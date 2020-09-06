@@ -18,23 +18,26 @@
 # along with this program (see the file COPYING in the distribution).
 # If not, see <http://www.gnu.org/licenses/>.
 
+SHELL = /bin/sh
+.SUFFIXES:
+
 PROGRAM = lsd
 export PROGRAM
 
-PREFIX ?= /usr/local
-export PREFIX
+prefix = /usr/local
+export prefix
 
-SHARE_PATH = $(PREFIX)/share/lsd
+SHARE_PATH = $(prefix)/share/lsd
 export SHARE_PATH
 
-LIB_PATH = $(PREFIX)/lib
+LIB_PATH = $(prefix)/lib
 export LIB_PATH
 
-LD_LIBRARY_PATH += $(LIB_PATH)
-export LD_LIBRARY_PATH
+#LD_LIBRARY_PATH += $(LIB_PATH)
+#export LD_LIBRARY_PATH
 
-BIN_PATH = $(PREFIX)/sbin
-export BIN_PATH
+bindir = $(prefix)/sbin
+export bindir
 
 COVERITY_DIR := cov-int
 COVERITY_TGZ := $(PROGRAM).tgz

@@ -1,11 +1,21 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (c) 2020 Brett Sheffield <bacs@librecast.net>
-
+SHELL = /bin/sh
+.SUFFIXES:
+.SUFFIXES: .c .o
 CFLAGS += -shared -fPIC
 MODULES := echo.so https.so
 NOTOBJS := ../src/lsd.o
 COMMON_OBJECTS := $(filter-out $(NOTOBJS), $(wildcard ../src/*.o))
 LIBS := -lsodium
+INSTALL := install
+INSTALL_PROGRAM := $(INSTALL)
+INSTALL_DATA := $(INSTALL) -m 644
+prefix ?= /usr/local
+exec_prefix := $(prefix)
+bindir := $(exec_prefix)/bin
+datarootdir := $(prefix)/share/lsd
+includedir := $(prefix)/include
 
 all: $(MODULES)
 
@@ -21,10 +31,10 @@ echo.so: echo.o $(COMMON_OBJECTS)
 %.o: %.h
 
 install: all
-	install -d $(LIB_PATH)
-	install -d $(SHARE_PATH)
-	install $(MODULES) $(LIB_PATH)
-	install mime.types $(SHARE_PATH)
+	$(INSTALL) -d $(datarootdir)
+	$(INSTALL) -d $(includedir)
+	$(INSTALL_DATA) $(MODULES) $(includedir)
+	$(INSTALL_DATA) mime.types $(datarootdir)
 
 .PHONY: clean
 

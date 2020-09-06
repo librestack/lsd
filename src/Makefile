@@ -18,12 +18,19 @@
 # along with this program (see the file COPYING in the distribution).
 # If not, see <http://www.gnu.org/licenses/>.
 
-
+SHELL = /bin/sh
+.SUFFIXES:
+.SUFFIXES: .c .o
+INSTALL := install
+INSTALL_PROGRAM := $(INSTALL)
+INSTALL_DATA := $(INSTALL) -m 644
+prefix ?= /usr/local
+exec_prefix := $(prefix)
+bindir := $(exec_prefix)/bin
+datarootdir := $(prefix)/share/lsd
 COMMON_OBJECTS = config.o db.o err.o iov.o log.o str.o wire.o
-OBJECTS = $(PROGRAM).o handler.o $(COMMON_OBJECTS)
-
+OBJECTS = handler.o $(COMMON_OBJECTS)
 CFLAGS += -fPIC -Wno-unused-parameter
-
 LDLIBS = -ldl -lrt -llmdb -pthread -llibrecast -llsdb -llcdb -lsodium
 
 .PHONY:		all clean
@@ -38,5 +45,5 @@ clean:
 realclean:	clean
 
 install:	all
-		install -d $(DESTDIR)$(BIN_PATH)
-		install $(PROGRAM) $(DESTDIR)$(BIN_PATH)/
+		$(INSTALL) -d $(DESTDIR)$(bindir)
+		$(INSTALL_PROGRAM) $(PROGRAM) $(DESTDIR)$(bindir)/$(PROGRAM)
