@@ -4,7 +4,7 @@ SHELL = /bin/sh
 .SUFFIXES:
 .SUFFIXES: .c .o
 CFLAGS += -shared -fPIC
-MODULES := echo.so https.so
+MODULES := echo.so http.so
 NOTOBJS := ../src/lsd.o
 COMMON_OBJECTS := $(filter-out $(NOTOBJS), $(wildcard ../src/*.o))
 LIBS := -lsodium
@@ -14,10 +14,11 @@ INSTALL_DATA := $(INSTALL) -m 644
 prefix ?= /usr/local
 exec_prefix := $(prefix)
 bindir := $(exec_prefix)/bin
+libdir := $(exec_prefix)/lib
 datarootdir := $(prefix)/share/lsd
 includedir := $(prefix)/include
 
-all: $(MODULES)
+all: $(MODULES) https.so
 
 https.so: http.so
 	ln -sf http.so https.so
@@ -33,7 +34,8 @@ echo.so: echo.o $(COMMON_OBJECTS)
 install: all
 	$(INSTALL) -d $(datarootdir)
 	$(INSTALL) -d $(includedir)
-	$(INSTALL_DATA) $(MODULES) $(includedir)
+	$(INSTALL) $(MODULES) $(libdir)
+	cd $(libdir) && ln -s http.so https.so
 	$(INSTALL_DATA) mime.types $(datarootdir)
 
 .PHONY: clean
