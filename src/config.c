@@ -232,7 +232,7 @@ module_t *config_module(char *name, size_t len)
 {
 	module_t *mod = mods;
 	TRACE("%s()", __func__);
-	DEBUG("seaching %i modules for '%.*s'", mods_loaded, len, name);
+	DEBUG("seaching %i modules for '%.*s'", mods_loaded, (int)len, name);
 	for (int i = 0; i < mods_loaded; i++) {
 		if (!mod) break;
 		DEBUG("trying '%s'=='%.*s'", mod->name, len, name);
