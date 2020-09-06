@@ -82,6 +82,7 @@ int config_mime_load(void)
 		if (line[0] == '#') continue;
 		line[len] = '\0';
 		type = strtok(line, " \t");
+		if (!type) type = line;
 		v.mv_size = strlen(type);
 		v.mv_data = type;
 		while ((ext = strtok(NULL, " \t"))) {
