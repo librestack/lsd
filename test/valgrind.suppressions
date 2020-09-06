@@ -1,0 +1,18 @@
+{
+   dlopen_leak__dl_open
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_exception
+}
+{
+   dlopen_leak__dl_close
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:dlclose
+   fun:config_unload_modules
+   fun:main
+}
