@@ -291,6 +291,7 @@ static int config_load_module(module_t *mod, char *name, size_t len)
 err_load:
 	ERROR("%s", dlerror());
 	dlclose(mod->ptr);
+	free(module);
 	return err;
 }
 
