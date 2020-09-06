@@ -39,5 +39,4 @@ realclean:	clean
 
 install:	all
 		install -d $(BIN_PATH)
-		install -d $(DB_PATH)
 		install $(PROGRAM) $(BIN_PATH)/

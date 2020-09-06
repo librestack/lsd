@@ -36,9 +36,6 @@ export LD_LIBRARY_PATH
 BIN_PATH = $(PREFIX)/sbin
 export BIN_PATH
 
-DB_PATH = /var/local/lib/lsd/
-export DB_PATH
-
 COVERITY_DIR := cov-int
 COVERITY_TGZ := $(PROGRAM).tgz
 
