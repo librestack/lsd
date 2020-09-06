@@ -342,7 +342,7 @@ int config_load_modules(void)
 	if ((err = mdb_cursor_count(cur, &size)))
 		goto cur_close;
 	/* TODO: check size */
-	DEBUG("loading %u modules", size);
+	DEBUG("loading %zu modules", size);
 	mods = calloc(size, sizeof(module_t));
 	module_t *mod = mods;
 	do {
