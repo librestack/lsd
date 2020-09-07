@@ -27,8 +27,10 @@ sanitize: test
 
 test: clean build $(shell echo ????-????.c | sed 's/\.c/\.test/g') result
 
-build:
-	cd ../src && $(MAKE)
+src modules:
+	$(MAKE) -C ../$@
+
+build: src modules
 	@echo -e "$(TIMESTAMP) - starting tests" >> $(LOGFILE)
 	@echo -e "\nRunning tests"
 

@@ -249,7 +249,7 @@ module_t *config_module(char *name, size_t len)
 static int config_load_module(module_t *mod, char *name, size_t len)
 {
 	int err = 0;
-	char modpath[] = "/usr/local/lib:/usr/lib:/usr/local/sbin:./src/"; /* FIXME - configurable */
+	char modpath[] = "../modules:/usr/local/lib:/usr/lib:/usr/local/sbin"; /* TODO - configurable */
 	char *module = NULL;
 	char *path;
 	size_t size;
@@ -267,7 +267,7 @@ static int config_load_module(module_t *mod, char *name, size_t len)
 			free(module);
 			return 0;
 		}
-		/* FIXME: allocate memory dynamically */
+		/* TODO: allocate memory dynamically */
 		if (!mods) {
 			mods = calloc(32, sizeof(module_t));
 		}
@@ -284,6 +284,9 @@ static int config_load_module(module_t *mod, char *name, size_t len)
 				if ((err = conf())) goto err_load;
 			mods_loaded++;
 			break;
+		}
+		else {
+			DEBUG("dlopen: %s", dlerror());
 		}
 		free(module); module = NULL;
 		path = strtok(NULL, ":");
@@ -330,6 +333,7 @@ int config_load_modules(void)
 
 	TRACE("%s()", __func__);
 	config_db(DB_PROTO, dbname);
+	assert(env);
 	if ((err = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn)) != 0)
 		goto config_load_modules_err;
 	if((err = mdb_dbi_open(txn, dbname, MDB_INTEGERKEY, &dbi)) != 0)
@@ -863,7 +867,7 @@ void config_yield_free(void)
 void config_init_db(char *dbpath)
 {
 	char template[] = "/tmp/.tmp.db.XXXXXX";
-	TRACE("%s()", __func__);
+	TRACE("%s(%s)", __func__, dbpath);
 	if (!dbpath)
 		dbpath = mkdtemp(template);
 	if (!dbpath)

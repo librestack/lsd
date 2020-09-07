@@ -4,7 +4,8 @@ IP connection logging
 better HTTP logging
 default_url
 add_header / HSTS support
-
 map out usage of MDB_env etc to ensure only using env in proc that opened it
 clean out stale readers
-
+config_load_module(): configurable modpath
+config_load_module(): allocate mods array dynamically - presently fixed to 32 elements
+config_module(): load module if not loaded
