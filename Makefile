@@ -50,7 +50,7 @@ export CFLAGS
 
 .PHONY: all clean realclean src modules
 
-all:	src
+all:	src modules
 
 clean realclean:
 	@$(MAKE) -C src $@
