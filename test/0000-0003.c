@@ -14,6 +14,9 @@ int main()
 
 	/* check for leaks - requires make check */
 	config_init(argc, argv);
+
+	/* simulate multiple HUPs */
+	for (int i = 0; i < 10; i++) config_init(0, NULL);
 	config_close();
 
 	return fails;

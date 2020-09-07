@@ -866,10 +866,10 @@ void config_init_db(char *dbpath)
 	char template[] = "/tmp/.tmp.db.XXXXXX";
 	TRACE("%s(%s)", __func__, dbpath);
 	if (!dbpath)
-		dbpath = mkdtemp(template);
+		dbpath = (dbdir) ? dbdir : mkdtemp(template);
 	if (!dbpath)
 		DIE("unable to create database");
-	dbdir = strdup(dbpath);
+	if (!dbdir) dbdir = strdup(dbpath);
 	if (env) return;
 	if (mdb_env_create(&env)) DIE ("mdb_env_create() failed");
 	if (mdb_env_set_maxreaders(env, HANDLER_MAX + 1)) DIE("mdb_env_set_maxreaders failed");
