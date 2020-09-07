@@ -277,9 +277,9 @@ static int config_load_module(module_t *mod, char *name, size_t len)
 		if (mod->ptr) {
 			mod->name = strndup(name, len);
 			DEBUG("module '%s' loaded successfully", mod->name);
-			int (* init)(); int (* conf)();
+			int (* init)(char *); int (* conf)();
 			if ((*(void **)(&init) = dlsym(mod->ptr, "init")))
-				if ((err = init())) goto err_load;
+				if ((err = init(dbdir))) goto err_load;
 			if ((*(void **)(&conf) = dlsym(mod->ptr, "conf")))
 				if ((err = conf())) goto err_load;
 			mods_loaded++;
@@ -787,10 +787,10 @@ int config_set_int(const char *db, char *key, int val, MDB_txn *txn, MDB_dbi dbi
 	return err;
 }
 
+#define FAILMDB FAILMSG(LSD_ERROR_DB, "%s()[%i]: %s", __func__, __LINE__, mdb_strerror(err))
+#define EDB(f) if ((err = f) != 0) FAILMDB
 int config_yield(const char *dbname, MDB_val *key, MDB_val *val)
 {
-	/* FIXME: for this function to be reentrant, we need to store all this
-	 * state and pass it back to the caller */
 	static config_state_t state = CONFIG_INIT;
 	static MDB_txn *txn;
 	static MDB_dbi dbi;
@@ -799,21 +799,18 @@ int config_yield(const char *dbname, MDB_val *key, MDB_val *val)
 	int err = 0;
 
 	TRACE("%s()", __func__);
+	DEBUG("dbdir: '%s'", dbdir);
+	DEBUG("dbname: '%s'", dbname);
+	if (key) DEBUG("searching for key: '%s'", (char *)key->mv_data);
 	if (!dbname)
 		state = CONFIG_FINAL;
 	switch (state) {
 	case CONFIG_INIT:
 		yield = 1;
-		if ((err = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn)) != 0) 
-			FAILMSG(LSD_ERROR_DB, "%s()[%i]: %s", __func__, \
-						__LINE__, mdb_strerror(err));
-		if((err = mdb_dbi_open(txn, dbname, MDB_INTEGERKEY, &dbi)) != 0) {
-			FAILMSG(LSD_ERROR_DB, "%s()[%i]: %s", __func__, \
-						__LINE__,mdb_strerror(err));
-		}
-		if ((err = mdb_cursor_open(txn, dbi, &cur)) != 0)
-			FAILMSG(LSD_ERROR_DB, "%s()[%i]: %s", __func__, \
-						__LINE__,mdb_strerror(err));
+		assert(env);
+		EDB(mdb_txn_begin(env, NULL, MDB_RDONLY, &txn));
+		EDB(mdb_dbi_open(txn, dbname, MDB_INTEGERKEY, &dbi));
+		EDB(mdb_cursor_open(txn, dbi, &cur));
 		state = CONFIG_NEXT;
 		break;
 	case CONFIG_NEXT:
@@ -834,16 +831,16 @@ int config_yield(const char *dbname, MDB_val *key, MDB_val *val)
 			state = CONFIG_FINAL;
 			return state;
 		}
-		FAILMSG(LSD_ERROR_DB, "%s(%i): %s", __func__, __LINE__, mdb_strerror(err));
+		FAILMDB;
 	}
 	return state;
 }
+#undef EDB
+#undef FAILMDB
 
 /* return one value at a time. Call with key == NULL to skip to final state clean up */
 int config_yield_s(char db, char *key, MDB_val *val)
 {
-	/* FIXME: for this function to be reentrant, we need to store all this
-	 * state and pass it back to the caller */
 	static MDB_val k;
 	static char dbname[2];
 

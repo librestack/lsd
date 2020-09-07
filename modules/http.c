@@ -802,6 +802,7 @@ int conn(conn_t *c)
 
 	res.iovs.nmemb = IOVSIZE;
 	res.head.nmemb = IOVSIZE;
+	env = NULL; config_init_db(dbdir);
 
 	/* handle TLS connection */
 	if (!strcmp(c->proto->module, "https")) {
@@ -1000,7 +1001,8 @@ int conf(void)
 }
 
 /* initialize */
-int init(void)
+int init(char *dbname)
 {
+	dbdir = dbname;
 	return 0;
 }
