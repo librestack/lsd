@@ -35,7 +35,7 @@ install: all
 	$(INSTALL) -d $(datarootdir)
 	$(INSTALL) -d $(includedir)
 	$(INSTALL) $(MODULES) $(libdir)
-	cd $(libdir) && ln -s http.so https.so
+	cd $(libdir) && ln -sf http.so https.so
 	$(INSTALL_DATA) mime.types $(datarootdir)
 
 .PHONY: clean
