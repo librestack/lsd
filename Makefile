@@ -45,7 +45,7 @@ export bindir
 COVERITY_DIR := cov-int
 COVERITY_TGZ := $(PROGRAM).tgz
 
-CFLAGS += -Wall -Wextra -Wpedantic -Wvla -g
+CFLAGS += -O2 -Wall -Wextra -Wpedantic -Wvla -g
 export CFLAGS
 
 .PHONY: all clean realclean src modules

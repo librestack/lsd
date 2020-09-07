@@ -336,10 +336,12 @@ ssize_t snd_string(conn_t *c, char *str, ...)
 	ssize_t len = 0;
 	char *data = NULL;
 	va_list argp;
+	int ret;
 
 	va_start(argp, str);
-	vasprintf(&data, str, argp);
+	ret = vasprintf(&data, str, argp);
 	va_end(argp);
+	if (ret == -1) return -1;
 	len = snd(c, data, strlen(data), 0);
 	free(data);
 
@@ -434,9 +436,8 @@ static http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 
 	TRACE("%s()", __func__);
 
-	asprintf(&stok, "%.*s258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
-		(int)req->secwebsocketkey.iov_len,
-		(char *)req->secwebsocketkey.iov_base);
+	if (asprintf(&stok, "%.*s258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
+				FMTV(req->secwebsocketkey)) == -1) return -1;
 
 	/* SHA1 hash, then base64 encode */
 	wc_InitSha(&sha);
@@ -445,7 +446,8 @@ static http_status_code_t response_upgrade(conn_t *c, http_request_t *req)
 	free(stok);
 	memset(b64, 0, outLen + 1);
 	Base64_Encode_NoNl(md, SHA_DIGEST_SIZE, b64, &outLen);
-	asprintf(&header, "Sec-WebSocket-Accept: %s\r\n", b64);
+	if (asprintf(&header, "Sec-WebSocket-Accept: %s\r\n", b64) == -1)
+		return -1;
 
 	setcork(c->sock, 1);
 	snd_string(c, "HTTP/1.1 %i %s\r\n", HTTP_SWITCHING_PROTOCOLS, http_phrase(HTTP_SWITCHING_PROTOCOLS));
