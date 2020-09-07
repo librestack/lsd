@@ -166,6 +166,6 @@ int conf();
 void finit();
 
 /* initialize */
-int init();
+int init(char *dbname);
 
 #endif /* __LSD_HTTP_H */
