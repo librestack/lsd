@@ -24,7 +24,7 @@ SHELL = /bin/sh
 PROGRAM = lsd
 export PROGRAM
 
-VERSION = 0.0.1
+VERSION = 0.0.2
 export VERSION
 
 prefix = /usr/local

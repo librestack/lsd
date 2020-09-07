@@ -541,6 +541,7 @@ void config_close(void)
 	mdb_env_close(env);
 	env = NULL;
 	free(dbdir);
+	dbdir = NULL;
 }
 
 /* fetch and return a copy */

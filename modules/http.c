@@ -991,7 +991,6 @@ int load_uri(char *line, MDB_txn *txn)
 }
 void finit(void)
 {
-	config_close();
 }
 
 /* load/reload config */
