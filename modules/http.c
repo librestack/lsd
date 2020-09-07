@@ -348,7 +348,7 @@ ssize_t snd_string(conn_t *c, char *str, ...)
 
 static int http_response_send(conn_t *c, http_request_t *req, http_response_t *res)
 {
-	(void) req; /* FIXME - unused */
+	(void) req;
 
 	setcork(c->sock, 1);
 	if (c->ssl) {
@@ -357,7 +357,8 @@ static int http_response_send(conn_t *c, http_request_t *req, http_response_t *r
 		}
 	}
 	else {
-		writev(c->sock, res->iovs.iov, res->iovs.idx); /* TODO: check errors */
+		if (writev(c->sock, res->iovs.iov, res->iovs.idx) == -1)
+			return -1;
 	}
 	setcork(c->sock, 0);
 	return 0;
