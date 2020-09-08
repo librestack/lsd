@@ -32,11 +32,12 @@ echo.so: echo.o $(COMMON_OBJECTS)
 %.o: %.h
 
 install: all
-	$(INSTALL) -d $(datarootdir)
-	$(INSTALL) -d $(includedir)
-	$(INSTALL) $(MODULES) $(libdir)
-	cd $(libdir) && ln -sf http.so https.so
-	$(INSTALL_DATA) mime.types $(datarootdir)
+	$(INSTALL) -d $(DESTDIR)$(datarootdir)
+	$(INSTALL) -d $(DESTDIR)$(includedir)
+	$(INSTALL) -d $(DESTDIR)$(libdir)
+	$(INSTALL) $(MODULES) $(DESTDIR)$(libdir)
+	cd $(DESTDIR)$(libdir) && ln -sf http.so https.so
+	$(INSTALL_DATA) mime.types $(DESTDIR)$(datarootdir)
 
 .PHONY: clean
 
