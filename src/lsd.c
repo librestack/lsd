@@ -26,6 +26,7 @@
 #include "handler.h"
 #include "log.h"
 #include "lsd.h"
+#include "server.h"
 #include <arpa/inet.h>
 #include <assert.h>
 #include <dlfcn.h>
@@ -43,64 +44,6 @@
 #include <sys/wait.h>
 #include <netdb.h>
 #include <unistd.h>
-
-static int server_listen(void)
-{
-	struct addrinfo hints = {0};
-	struct addrinfo *a = NULL;
-	struct addrinfo *ai = NULL;
-	char cport[6];
-	int n = 0;
-	int sock = -1;
-	int yes = 1;
-	proto_t *p;
-	MDB_val val;
-
-	TRACE("%s()", __func__);
-
-	/* allocate an array for sockets */
-	while (config_yield_s(DB_PROTO, "proto", &val) == CONFIG_NEXT) { n++; }
-	config_yield_free();
-	DEBUG("n = %i", n);
-
-	if (!n) return 0;
-	socks = calloc(n, sizeof(int));
-	n = 0;
-
-	/* listen on all ports and protocols listed in config */
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_flags = AI_PASSIVE;
-	while (config_yield_s(DB_PROTO, "proto", &val) == CONFIG_NEXT) {
-		p = val.mv_data;
-		hints.ai_socktype = p->socktype;
-		hints.ai_protocol = p->protocol; /* optional */
-		sprintf(cport, "%u", p->port);
-		for (int e = getaddrinfo(p->addr, cport, &hints, &a); a; a = a->ai_next) {
-			if (e) FAILMSG(LSD_ERROR_GETADDRINFO, strerror(e));
-			if (!ai) ai = a;
-			if ((sock = socket(a->ai_family, a->ai_socktype, a->ai_protocol)) == -1)
-				continue;
-			if ((setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))) == -1)
-				continue;
-			if ((bind(sock, a->ai_addr, a->ai_addrlen)) == -1)
-				continue;
-			break;
-		}
-		freeaddrinfo(ai); ai = NULL;
-		if (sock != -1) {
-			if (p->socktype == SOCK_STREAM) {
-				(socks)[n] = sock;
-				INFO("Listening on [%s]:%s", p->addr, cport);
-				if ((listen((sock), BACKLOG)) == -1)
-					DIE("listen() error: %s", strerror(errno));
-			}
-			n++;
-		}
-	}
-	config_yield_free();
-
-	return n;
-}
 
 static void sigchld_handler(int __attribute__((unused)) signo)
 {
@@ -215,7 +158,6 @@ int main(int argc, char **argv)
 	}
 exit_controller:
 	while (handlers) close(socks[handlers--]);
-	free(socks);
 	config_unload_modules();
 	config_close();
 	INFO("Controller exiting");

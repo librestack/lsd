@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
  *
- * lsd.h
+ * server.h
  *
  * this file is part of LIBRESTACK
  *
@@ -21,20 +21,9 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __LSD_H
-#define __LSD_H 1
+#ifndef __SERVER_H
+#define __SERVER_H 1
 
-#include <sys/types.h>
+int server_listen(void);
 
-typedef struct LSD_val {
-	size_t   size;
-	void    *data;
-} LSD_val;
-
-#define HANDLER_MAX 100	/* maximum number of handler processes */
-#define HANDLER_MIN 5   /* minimum number of handlers to keep ready */
-#define HANDLER_RDY 0   /* semapahore to track ready handlers */
-#define HANDLER_BSY 1   /* semapahore to track busy handlers */
-#define PROGRAM_NAME "lsd"
-
-#endif /* __LSD_H */
+#endif /* __SERVER_H */

@@ -538,10 +538,9 @@ static int config_process_uri(char *line, size_t len, MDB_txn *txn, MDB_dbi dbi)
 void config_close(void)
 {
 	TRACE("%s()", __func__);
-	mdb_env_close(env);
-	env = NULL;
-	free(dbdir);
-	dbdir = NULL;
+	mdb_env_close(env); env = NULL;
+	free(dbdir); dbdir = NULL;
+	free(socks); socks = NULL;
 }
 
 /* fetch and return a copy */

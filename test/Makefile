@@ -14,7 +14,7 @@ LEAK = "\\e[0m\\e[31mFAIL \| LEAK\\e[0m\\n\\tSee $@.valgrind"
 LASTLOG := lastlog.log
 LOGFILE := $(shell mktemp "lsdb-test-XXXXXXXX.log")
 TIMESTAMP = $(shell date +"%Y-%m-%d %H:%M:%S")
-VALGRIND = valgrind --leak-check=full --error-exitcode=2 --errors-for-leak-kinds=all --track-origins=yes --suppressions=valgrind.suppressions --log-file=$@.valgrind
+VALGRIND = valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=2 --errors-for-leak-kinds=all --track-origins=yes --suppressions=valgrind.suppressions --log-file=$@.valgrind
 
 .PHONY: test clean realclean build result check
 
