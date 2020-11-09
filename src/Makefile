@@ -47,3 +47,4 @@ realclean:	clean
 install:	all
 		$(INSTALL) -d $(DESTDIR)$(bindir)
 		$(INSTALL_PROGRAM) $(PROGRAM) $(DESTDIR)$(bindir)/$(PROGRAM)
+		$(LDCONFIG)

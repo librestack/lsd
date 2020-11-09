@@ -38,6 +38,7 @@ install: all
 	$(INSTALL) $(MODULES) $(DESTDIR)$(libdir)
 	cd $(DESTDIR)$(libdir) && ln -sf http.so https.so
 	$(INSTALL_DATA) mime.types $(DESTDIR)$(datarootdir)
+	$(LDCONFIG)
 
 .PHONY: clean
 
