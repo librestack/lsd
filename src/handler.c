@@ -47,7 +47,6 @@ void handler_close(void)
 {
 	if (yield) config_yield_free();
 	config_unload_modules();
-	free(socks);
 	config_close();
 	DEBUG("handler exiting");
 	_exit(0);
