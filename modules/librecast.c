@@ -4,7 +4,7 @@
  *
  * this file is part of LIBRESTACK
  *
- * Copyright (c) 2017-2020 Brett Sheffield <bacs@librecast.net>
+ * Copyright (c) 2017-2021 Brett Sheffield <bacs@librecast.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -81,7 +81,8 @@ static int lcast_session_id(uint64_t *sid)
 	FILE *fd = fopen("/dev/urandom", "r");
 	if (fd == NULL)
 		return -1;
-	fread(sid, sizeof *sid, 1, fd);
+	if (fread(sid, sizeof *sid, 1, fd) != sizeof *sid)
+		return -1;
 	fclose(fd);
 	return 0;
 }
