@@ -23,3 +23,30 @@ Librecast projects.
 ## Modules
 
 - http.so - simple https 1.1 webserver module with websockets support
+
+
+## Questions, Bug reports, Feature Requests
+
+New issues can be raised at:
+
+https://github.com/librestack/lsd/issues
+
+It's okay to raise an issue to ask a question.  You can also email or ask on
+IRC.
+
+<hr />
+
+<p class="bigbreak">
+This project was funded through the <a href="https://nlnet.nl/discovery"> NGI0 Discovery </a> Fund, a fund established by NLnet with financial support from the European
+Commission's <a href="https://ngi.eu">Next Generation Internet</a> programme, under the aegis of DG Communications Networks, Content and Technology under grant agreement No 825322. *Applications are still open, you can <a href="https://nlnet.nl/propose">apply today</a>*
+</p>
+
+<p>
+  <a href="https://nlnet.nl/project/LibrecastLive/">
+      <img width="250" src="https://nlnet.nl/logo/banner.png" alt="Logo NLnet: abstract logo of four people seen from above" class="logocenter" />
+  </a>
+  <a href="https://ngi.eu/">
+      <img width="250" align="right" src="https://nlnet.nl/image/logos/NGI0_tag.png" alt="Logo NGI Zero: letterlogo shaped like a tag" class="logocenter" />
+  </a>
+</p>
+
