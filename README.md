@@ -34,6 +34,14 @@ https://github.com/librestack/lsd/issues
 It's okay to raise an issue to ask a question.  You can also email or ask on
 IRC.
 
+### IRC channel
+
+`#librecast` on freenode.net
+
+If you have a question, please be patient. An answer might take a few hours
+depending on time zones and whether anyone on the team is available at that
+moment. 
+
 <hr />
 
 <p class="bigbreak">
