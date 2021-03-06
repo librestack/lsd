@@ -36,6 +36,16 @@ IRC.
 
 <hr />
 
+### IRC channel
+
+`#librecast` on freenode.net
+
+If you have a question, please be patient. An answer might take a few hours
+depending on time zones and whether anyone on the team is available at that
+moment. 
+
+<hr />
+
 <p class="bigbreak">
 This project was funded through the <a href="https://nlnet.nl/discovery"> NGI0 Discovery </a> Fund, a fund established by NLnet with financial support from the European
 Commission's <a href="https://ngi.eu">Next Generation Internet</a> programme, under the aegis of DG Communications Networks, Content and Technology under grant agreement No 825322. *Applications are still open, you can <a href="https://nlnet.nl/propose">apply today</a>*
