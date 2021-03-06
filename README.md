@@ -34,6 +34,8 @@ https://github.com/librestack/lsd/issues
 It's okay to raise an issue to ask a question.  You can also email or ask on
 IRC.
 
+<hr />
+
 ### IRC channel
 
 `#librecast` on freenode.net
