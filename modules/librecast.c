@@ -35,6 +35,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#define LCDB _LIBRECAST_DB_H
+
 typedef struct lcast_sock_t {
 	lc_socket_t *sock;
 	uint32_t id;
@@ -70,11 +72,13 @@ int lcast_frame_send(conn_t *c, lcast_frame_t *req, char *payload, uint32_t payl
 void lcast_recv(lc_message_t *msg);
 void lcast_recv_err(int err);
 
+#if LCDB
 static void lcast_session_register(void)
 {
 	int mode = LC_DB_MODE_DUP | LC_DB_MODE_BOTH;
 	lc_db_idx(lctx, "session", "user", &sid, sizeof sid, &uid, sizeof uid, mode);
 }
+#endif
 
 static int lcast_session_id(uint64_t *sid)
 {
@@ -92,7 +96,9 @@ static void lcast_session_start(void)
 	lcast_session_id(&sid);
 	sss = time(NULL);
 	memset(&session, 0, sizeof session);
+#if LCDB
 	lcast_session_register();
+#endif
 }
 
 static void lcast_session_update(uint64_t byi, uint64_t byo, uint64_t wsi, uint64_t wso)
@@ -109,7 +115,9 @@ static void lcast_session_update(uint64_t byi, uint64_t byo, uint64_t wsi, uint6
 	session.byo += byo;
 	logmsg(LOG_DEBUG, "session %lu bytes in %lu bytes out", session.byi, session.byo);
 	/* TODO: configure option - log to local db and/or channel */
+#if LCDB
 	lc_db_set(lctx, "session", &sid, sizeof sid, &session, sizeof session);
+#endif
 }
 
 static int lcast_cmd_register(conn_t *c, lcast_frame_t *req, char *payload)
@@ -118,7 +126,9 @@ static int lcast_cmd_register(conn_t *c, lcast_frame_t *req, char *payload)
 	logmsg(LOG_TRACE, "%s", __func__);
 	/* TODO: unpack / check sig on cap token */
 	/* TODO: set uid */
+#if LCDB
 	lcast_session_register();
+#endif
 	return 0;
 }
 
@@ -400,6 +410,7 @@ int lcast_cmd_channel_send(conn_t *c, lcast_frame_t *req, char *payload)
 	return 0;
 }
 
+#if LCDB
 int lcast_cmd_channel_getmsg(conn_t *c, lcast_frame_t *req, char *payload)
 {
 	(void)c;
@@ -478,6 +489,7 @@ int lcast_cmd_channel_getmsg(conn_t *c, lcast_frame_t *req, char *payload)
 	logmsg(LOG_TRACE, "%s exiting", __func__);
 	return 0;
 }
+#endif
 
 int lcast_cmd_channel_getop(conn_t *c, lcast_frame_t *req, char *payload)
 {
@@ -501,6 +513,7 @@ int lcast_cmd_channel_setop(conn_t *c, lcast_frame_t *req, char *payload)
 	return 0;
 }
 
+#if LCDB
 int lcast_cmd_channel_getval(conn_t *c, lcast_frame_t *req, char *payload)
 {
 	lcast_chan_t *chan;
@@ -574,7 +587,7 @@ int lcast_cmd_channel_setval(conn_t *c, lcast_frame_t *req, char *payload)
 	logmsg(LOG_FULLTRACE, "%s exiting", __func__);
 	return 0;
 }
-
+#endif
 
 int lcast_cmd_channel_unbind(conn_t *c, lcast_frame_t *req, char *payload)
 {
@@ -793,7 +806,9 @@ void lcast_init(void)
 	if (lctx == NULL)
 		lctx = lc_ctx_new();
 	assert(lctx != NULL);
+#if LCDB
 	lc_db_open(lctx, NULL);
+#endif
 	DEBUG("LIBRECAST CONTEXT id=%u", lc_ctx_get_id(lctx));
 
 	/* start PING thread */
