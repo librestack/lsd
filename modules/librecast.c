@@ -383,6 +383,7 @@ int lcast_cmd_channel_part(conn_t *c, lcast_frame_t *req, char *payload)
 	if ((chan = lcast_channel_byid(req->id)) == NULL)
 		FAIL(LSD_ERROR_LIBRECAST_CHANNEL_NOT_EXIST);
 	lc_channel_part(chan->chan);
+	lcast_frame_send(c, req, NULL, 0);
 	lcast_channel_free(chan);
 
 	return 0;
